@@ -39,6 +39,12 @@ public class DashboardViewModel
 
     public IReadOnlyList<Interview> UpcomingInterviews { get; set; } = [];
 
+    public int FeedbackCount { get; set; }
+
+    public IReadOnlyList<InterviewFeedback> RecentFeedbacks { get; set; } = [];
+
+    public IReadOnlyList<SoftSkillAssessment> RecentSoftSkillAssessments { get; set; } = [];
+
     public IReadOnlyDictionary<string, int> ApplicationStatusCounts { get; set; } = new Dictionary<string, int>();
 
     public IReadOnlyDictionary<string, int> VacancyStatusCounts { get; set; } = new Dictionary<string, int>();

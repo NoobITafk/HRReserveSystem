@@ -107,9 +107,27 @@ public class HomeController : Controller
                 .Include(interview => interview.Application)
                     .ThenInclude(application => application!.Vacancy)
                 .Include(interview => interview.Recruiter)
-                .Where(interview => interview.InterviewDate >= DateTime.Now)
-                .OrderBy(interview => interview.InterviewDate)
+                .OrderByDescending(interview => interview.InterviewDate)
+                .Take(6)
+                .ToListAsync(),
+            FeedbackCount = await _context.InterviewFeedbacks.CountAsync(),
+            RecentFeedbacks = await _context.InterviewFeedbacks
+                .AsNoTracking()
+                .Include(f => f.Interview)
+                    .ThenInclude(i => i!.Application)
+                        .ThenInclude(a => a!.Candidate)
+                .Include(f => f.Interview)
+                    .ThenInclude(i => i!.Application)
+                        .ThenInclude(a => a!.Vacancy)
+                .Include(f => f.Recruiter)
+                .OrderByDescending(f => f.CreatedAt)
                 .Take(5)
+                .ToListAsync(),
+            RecentSoftSkillAssessments = await _context.SoftSkillAssessments
+                .AsNoTracking()
+                .Include(s => s.Candidate)
+                .OrderByDescending(s => s.Id)
+                .Take(4)
                 .ToListAsync(),
             ApplicationStatusCounts = applicationStatusCounts,
             VacancyStatusCounts = vacancyStatusCounts

@@ -838,19 +838,19 @@ public class HrIntegrationTests
     }
 
     [Fact]
-    public async Task Candidate_Registration_And_Profile_Displays_Successfully()
+    public async Task Interviewer_Registration_And_Dashboard_Displays_Successfully()
     {
         using var factory = new HrReserveWebApplicationFactory();
         using var client = CreateClient(factory);
 
         var regResponse = await PostFormAsync(client, "/Account/Register", new Dictionary<string, string>
         {
-            ["FullName"] = "Кандидат Тестовий",
-            ["Email"] = "candidate.test@example.com",
-            ["Login"] = "candidate_test",
-            ["Password"] = "candidate123",
-            ["ConfirmPassword"] = "candidate123",
-            ["Role"] = "Candidate"
+            ["FullName"] = "Інтерв'юер Тестовий",
+            ["Email"] = "interviewer.test@example.com",
+            ["Login"] = "interviewer_test",
+            ["Password"] = "interviewer123",
+            ["ConfirmPassword"] = "interviewer123",
+            ["Role"] = "Interviewer"
         });
 
         Assert.Equal(HttpStatusCode.Redirect, regResponse.StatusCode);
@@ -858,20 +858,18 @@ public class HrIntegrationTests
         // Verify in database
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var candidateUser = await db.Recruiters.FirstOrDefaultAsync(r => r.Login == "candidate_test");
-        Assert.NotNull(candidateUser);
-        Assert.Equal("Candidate", candidateUser.Role);
+        var user = await db.Recruiters.FirstOrDefaultAsync(r => r.Login == "interviewer_test");
+        Assert.NotNull(user);
+        Assert.Equal("Interviewer", user.Role);
 
-        // Candidate entity should be auto-created
-        var candidateEntity = await db.Candidates.FirstOrDefaultAsync(c => c.Email == "candidate.test@example.com");
-        Assert.NotNull(candidateEntity);
-
-        // Access Profile page
-        var profileResponse = await client.GetAsync("/Account/Profile");
-        Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
-        var html = await profileResponse.Content.ReadAsStringAsync();
-        Assert.Contains("Портфоліо та резюме", html);
-        Assert.Contains("Оцінки Soft Skills", html);
+        // Access Interviewer Dashboard page
+        var dashboardResponse = await client.GetAsync("/Home/Index");
+        Assert.Equal(HttpStatusCode.OK, dashboardResponse.StatusCode);
+        var html = await dashboardResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Призначені співбесіди", html);
+        Assert.Contains("Останні експертні відгуки", html);
+        Assert.Contains("Матриця оцінок Soft Skills", html);
+        Assert.Contains("Швидкі дії інтерв'юера", html);
     }
 
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)

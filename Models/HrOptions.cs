@@ -45,8 +45,7 @@ public static class HrOptions
     [
         "Admin",
         "Recruiter",
-        "Interviewer",
-        "Candidate"
+        "Interviewer"
     ];
 
     public static string ApplicationStatusBadge(string? status) => status switch

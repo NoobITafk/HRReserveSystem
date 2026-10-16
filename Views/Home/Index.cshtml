@@ -62,6 +62,7 @@
             <a class="btn btn-outline-secondary" asp-controller="SoftSkillAssessments" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Оцінка Soft Skills</a>
         </div>
     }
+}
 </div>
 
 <div class="dashboard-kpi-grid mb-4">
@@ -138,6 +139,29 @@
             </div>
         </a>
     }
+    @if (!canOpenHiringPages)
+    {
+        <a class="card dashboard-card dashboard-card-link" href="@Url.Action("Index", "InterviewFeedbacks")">
+            <div class="card-body">
+                <div class="dashboard-card-head">
+                    <span class="dashboard-icon dashboard-icon-amber" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg></span>
+                    <span class="text-muted small text-uppercase">Надано відгуків</span>
+                </div>
+                <div class="display-6 fw-bold font-monospace">@Model.FeedbackCount</div>
+                <div class="metric-delta text-muted">Експертні оцінки</div>
+            </div>
+        </a>
+        <a class="card dashboard-card dashboard-card-link" href="@Url.Action("Calendar", "Interviews")">
+            <div class="card-body">
+                <div class="dashboard-card-head">
+                    <span class="dashboard-icon dashboard-icon-blue" aria-hidden="true"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></span>
+                    <span class="text-muted small text-uppercase">Календар</span>
+                </div>
+                <div class="display-6 fw-bold font-monospace">Live</div>
+                <div class="metric-delta text-success">Розклад зустрічей →</div>
+            </div>
+        </a>
+    }
     @if (canOpenHiringPages)
     {
         <a class="card dashboard-card dashboard-card-link" href="@acceptedUrl">
@@ -163,11 +187,173 @@
             </div>
         </a>
     }
+}
 </div>
 
 <div class="dashboard-bento-grid">
-    @if (canOpenHiringPages)
-    {
+@if (!canOpenHiringPages)
+{
+    <!-- Interviewer: Upcoming / Recent Interviews -->
+    <section class="card bento-card" style="grid-column: span 6;">
+        <div class="card-header">
+            <div>
+                <h2 class="h5 mb-0">Призначені співбесіди</h2>
+                <small class="text-muted">Актуальні зустрічі з кандидатами</small>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary" asp-controller="Interviews" asp-action="Calendar">Календар →</a>
+        </div>
+        <div class="card-body">
+            @if (Model.UpcomingInterviews.Any())
+            {
+                <div class="interview-stack">
+                @foreach (var interview in Model.UpcomingInterviews.Take(5))
+                {
+                    <a class="interview-item" asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id">
+                        <span class="interview-date">
+                            <strong class="font-monospace">@interview.InterviewDate.Day</strong>
+                            <small>@interview.InterviewDate.ToString("MMM")</small>
+                        </span>
+                        <span class="min-w-0">
+                            <strong>@(interview.Application?.Candidate?.FullName ?? "Кандидат")</strong>
+                            <small class="text-truncate d-block">@(interview.Application?.Vacancy?.Title ?? "Позиція") · @interview.InterviewDate.ToString("HH:mm")</small>
+                        </span>
+                        <span class="@HrOptions.InterviewResultBadge(interview.Result)">@HrOptions.InterviewResultLabel(interview.Result)</span>
+                    </a>
+                }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">Запланованих співбесід немає.</div>
+            }
+        </div>
+    </section>
+
+    <!-- Interviewer: Recent Feedbacks -->
+    <section class="card bento-card" style="grid-column: span 6;">
+        <div class="card-header">
+            <div>
+                <h2 class="h5 mb-0">Останні експертні відгуки</h2>
+                <small class="text-muted">Оцінки інтерв'юерів за співбесідами</small>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary" asp-controller="InterviewFeedbacks" asp-action="Index">Усі відгуки →</a>
+        </div>
+        <div class="card-body">
+            @if (Model.RecentFeedbacks.Any())
+            {
+                <div class="d-flex flex-column gap-2">
+                @foreach (var fb in Model.RecentFeedbacks.Take(4))
+                {
+                    <a class="p-3 rounded-2 surface-subtle border text-decoration-none d-block transition-all" asp-controller="InterviewFeedbacks" asp-action="Details" asp-route-id="@fb.Id">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <strong>@(fb.Interview?.Application?.Candidate?.FullName ?? "Кандидат")</strong>
+                            <span class="badge-soft badge-soft-emerald font-monospace fw-bold">Бал: @fb.Score / 10</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center text-muted small">
+                            <span>@(fb.Interview?.Application?.Vacancy?.Title ?? "Вакансія")</span>
+                            <span class="@HrOptions.FeedbackRecommendationBadge(fb.Recommendation)">@HrOptions.FeedbackRecommendationLabel(fb.Recommendation)</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(fb.Comment))
+                        {
+                            <p class="text-muted small text-truncate mb-0 mt-1">@fb.Comment</p>
+                        }
+                    </a>
+                }
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">Відгуків ще немає. Створіть перший відгук після проведення інтерв'ю.</div>
+            }
+        </div>
+    </section>
+
+    <!-- Interviewer: Recent Soft Skills -->
+    <section class="card bento-card" style="grid-column: span 7;">
+        <div class="card-header">
+            <div>
+                <h2 class="h5 mb-0">Матриця оцінок Soft Skills</h2>
+                <small class="text-muted">Нещодавно оцінені кандидати кадрового резерву</small>
+            </div>
+            <a class="btn btn-sm btn-outline-secondary" asp-controller="SoftSkillAssessments" asp-action="Index">Всі оцінки →</a>
+        </div>
+        <div class="card-body">
+            @if (Model.RecentSoftSkillAssessments.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Кандидат</th>
+                                <th>Середній бал</th>
+                                <th>Комунікація</th>
+                                <th>Команда</th>
+                                <th>Лідерство</th>
+                                <th class="text-end">Дія</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var s in Model.RecentSoftSkillAssessments)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@(s.Candidate?.FullName ?? "Кандидат")</td>
+                                <td>
+                                    <span class="badge-soft badge-soft-emerald font-monospace fw-bold">@s.AverageScore.ToString("F1") / 10</span>
+                                </td>
+                                <td class="font-monospace small">@s.Communication/10</td>
+                                <td class="font-monospace small">@s.Teamwork/10</td>
+                                <td class="font-monospace small">@s.Leadership/10</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-primary" asp-controller="SoftSkillAssessments" asp-action="Details" asp-route-id="@s.Id">Аналітика</a>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">Оцінок Soft Skills ще немає.</div>
+            }
+        </div>
+    </section>
+
+    <!-- Interviewer: Quick Actions & Guide -->
+    <section class="card bento-card" style="grid-column: span 5;">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Швидкі дії інтерв'юера</h2>
+        </div>
+        <div class="card-body d-flex flex-column gap-3">
+            <div class="d-grid gap-2">
+                <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    Залишити новий відгук
+                </a>
+                <a class="btn btn-outline-primary" asp-controller="SoftSkillAssessments" asp-action="Create">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    Оцінити Soft Skills кандидата
+                </a>
+                <a class="btn btn-outline-secondary" asp-controller="Interviews" asp-action="Calendar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                    Інтерактивний календар зустрічей
+                </a>
+            </div>
+            <div class="p-3 rounded-3 surface-subtle border mt-auto">
+                <div class="fw-semibold small text-emerald mb-1">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" class="me-1"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    Критерії оцінювання:
+                </div>
+                <div class="text-muted small" style="line-height: 1.4;">
+                    Виставляйте бали за 10-бальною шкалою, фіксуючи технічний рівень, комунікацію, командну взаємодію та чіткі рекомендації (Hire / Maybe / Reject).
+                </div>
+            </div>
+        </div>
+    </section>
+}
+else
+{
+
         <section class="card bento-card bento-card-wide">
             <div class="card-header">
                 <div>
@@ -392,4 +578,5 @@
             </div>
         </section>
     }
+}
 </div>
