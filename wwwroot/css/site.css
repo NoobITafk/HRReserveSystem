@@ -498,14 +498,16 @@ a:hover {
   }
 
   body.sidebar-collapsed .app-sidebar {
-    padding-left: 0.65rem;
-    padding-right: 0.65rem;
+    padding: 1.15rem 0.5rem;
     width: 80px;
+    align-items: center;
   }
 
   body.sidebar-collapsed .sidebar-brand {
     justify-content: center;
     padding: 0.35rem 0;
+    margin-bottom: 1.25rem;
+    width: 100%;
   }
 
   body.sidebar-collapsed .sidebar-brand-copy,
@@ -516,14 +518,68 @@ a:hover {
     display: none !important;
   }
 
+  body.sidebar-collapsed .sidebar-nav {
+    align-items: center;
+    width: 100%;
+    gap: 0.4rem;
+  }
+
   body.sidebar-collapsed .sidebar-link {
     justify-content: center;
-    padding: 0.6rem;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    margin: 0 auto;
+    border-radius: 0.75rem;
+  }
+
+  body.sidebar-collapsed .sidebar-link:hover {
+    transform: none;
+    background: var(--sidebar-link-hover-bg);
+  }
+
+  body.sidebar-collapsed .sidebar-icon {
+    margin: 0;
+  }
+
+  body.sidebar-collapsed .sidebar-footer {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   body.sidebar-collapsed .sidebar-profile {
     justify-content: center;
-    padding: 0.5rem;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0 auto;
+    border-radius: 0.75rem;
+  }
+
+  body.sidebar-collapsed .sidebar-profile .profile-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
+
+  body.sidebar-collapsed .sidebar-footer form {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  body.sidebar-collapsed .btn-sidebar-logout {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    margin: 0 auto;
+    justify-content: center;
+    border-radius: 0.75rem;
   }
 }
 
@@ -2263,6 +2319,42 @@ html[data-theme="dark"] .app-toast-danger {
   border-top: 1px solid var(--border-color) !important;
   font-size: 0.84rem;
   padding: 1rem 0;
+  width: 100%;
+}
+
+.app-footer .app-container {
+  padding-left: clamp(1rem, 2.5vw, 2.25rem);
+  padding-right: clamp(1.25rem, 3vw, 2.75rem);
+}
+
+.app-footer a {
+  white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+  .app-footer .app-container {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.65rem !important;
+  }
+}
+
+.auth-trust-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(209, 250, 229, 0.9);
+}
+
+html[data-theme="light"] .auth-trust-card {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  color: #064e3b;
+}
+
+html[data-theme="dark"] .auth-trust-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  color: #ecfdf5;
 }
 
 .app-offcanvas {

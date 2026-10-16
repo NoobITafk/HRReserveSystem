@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using HRReserveSystem.Models;
-using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Http;
 
 namespace HRReserveSystem.ViewModels;
@@ -9,52 +8,33 @@ public class ProfileViewModel
 {
     public int Id { get; set; }
 
-    [Required(ErrorMessage = "Вкажіть ПІБ.")]
+    [Required(ErrorMessage = "Вкажіть ваше повне ім'я (ПІБ).")]
     [StringLength(120, MinimumLength = 2, ErrorMessage = "ПІБ має містити від 2 до 120 символів.")]
-    [Display(Name = "ПІБ")]
+    [Display(Name = "ПІБ (Повне ім'я)")]
     public string FullName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Вкажіть електронну пошту.")]
     [EmailAddress(ErrorMessage = "Введіть коректну електронну пошту.")]
     [StringLength(160, ErrorMessage = "Email має містити не більше 160 символів.")]
-    [Display(Name = "Електронна пошта")]
+    [Display(Name = "Корпоративна електронна пошта")]
     public string Email { get; set; } = string.Empty;
 
-    [Display(Name = "Логін")]
+    [Display(Name = "Логін у системі")]
     public string Login { get; set; } = string.Empty;
 
-    [Display(Name = "Роль")]
+    [Display(Name = "Роль у команді")]
     public string Role { get; set; } = string.Empty;
 
-    [Display(Name = "Аватар / Фото")]
+    [Display(Name = "Фото профілю (аватар)")]
     public string? AvatarUrl { get; set; }
 
     [Display(Name = "Завантажити нове фото")]
     public IFormFile? AvatarFile { get; set; }
 
-    [Display(Name = "Телефон")]
-    [Phone(ErrorMessage = "Введіть коректний номер телефону.")]
-    public string? Phone { get; set; }
-
-    [Display(Name = "Ключові навички та стек")]
-    public string? Skills { get; set; }
-
-    [Display(Name = "Досвід роботи, років")]
-    [Range(0, 60, ErrorMessage = "Досвід має бути від 0 до 60 років.")]
-    public int ExperienceYears { get; set; }
-
-    [Display(Name = "Файл резюме (CV)")]
-    public string? ResumeFilePath { get; set; }
-
-    [Display(Name = "Завантажити нове резюме (PDF/DOCX)")]
-    public IFormFile? ResumeFile { get; set; }
-
-    [Display(Name = "Короткий огляд резюме")]
-    public string? ResumeSummary { get; set; }
-
-    [Display(Name = "Дата реєстрації")]
+    [Display(Name = "Дата реєстрації в системі")]
     public DateTime CreatedAt { get; set; }
 
+    // Password change
     [DataType(DataType.Password)]
     [Display(Name = "Поточний пароль")]
     public string? CurrentPassword { get; set; }
@@ -69,15 +49,14 @@ public class ProfileViewModel
     [Display(Name = "Підтвердження нового пароля")]
     public string? ConfirmNewPassword { get; set; }
 
-    // Stats for Recruiters/Interviewers
+    // Employee Performance & Activity Metrics
     public int InterviewsCount { get; set; }
     public int FeedbacksCount { get; set; }
+    public int CandidatesCount { get; set; }
+    public int VacanciesCount { get; set; }
+    public double AverageFeedbackScore { get; set; }
 
-    // Candidate Portfolio Information
-    public bool IsCandidate { get; set; }
-    public int? CandidateId { get; set; }
-    public SoftSkillAssessment? CandidateSoftSkills { get; set; }
-    public List<Application> CandidateApplications { get; set; } = [];
-    public List<Interview> CandidateInterviews { get; set; } = [];
-    public ParsedResumeResult? ParsedResume { get; set; }
+    // Personal assigned schedule & feedbacks
+    public List<Interview> MyUpcomingInterviews { get; set; } = [];
+    public List<InterviewFeedback> MyRecentFeedbacks { get; set; } = [];
 }

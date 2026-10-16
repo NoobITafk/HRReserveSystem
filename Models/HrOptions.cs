@@ -96,6 +96,14 @@ public static class HrOptions
         _ => type ?? "Співбесіда"
     };
 
+    public static string InterviewTypeBadge(string? type) => type switch
+    {
+        "HR" => "badge-soft badge-soft-blue",
+        "Technical" => "badge-soft badge-soft-indigo",
+        "Final" => "badge-soft badge-soft-emerald",
+        _ => "badge-soft badge-soft-slate"
+    };
+
     public static string InterviewResultBadge(string? result) => result switch
     {
         "Pending" => "badge-soft badge-soft-amber",

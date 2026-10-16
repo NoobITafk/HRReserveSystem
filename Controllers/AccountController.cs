@@ -17,7 +17,6 @@ public class AccountController(
     IPasswordHasher<Recruiter> passwordHasher,
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
-    ResumeIntelligenceService resumeIntelligence,
     IWebHostEnvironment environment) : Controller
 {
     [AllowAnonymous]
@@ -123,7 +122,7 @@ public class AccountController(
             return View(model);
         }
 
-        var selectedRole = RegisterViewModel.AllowedRegistrationRoles.Contains(model.Role) ? model.Role : "Candidate";
+        var selectedRole = RegisterViewModel.AllowedRegistrationRoles.Contains(model.Role) ? model.Role : "Recruiter";
 
         var recruiter = new Recruiter
         {
@@ -136,24 +135,6 @@ public class AccountController(
         recruiter.PasswordHash = passwordHasher.HashPassword(recruiter, model.Password);
 
         context.Recruiters.Add(recruiter);
-
-        // If registering as a Candidate, also create or link Candidate profile
-        if (selectedRole == "Candidate")
-        {
-            var existingCandidate = await context.Candidates.FirstOrDefaultAsync(c => c.Email.ToLower() == normalizedEmail);
-            if (existingCandidate is null)
-            {
-                var candidate = new Candidate
-                {
-                    FullName = recruiter.FullName,
-                    Email = recruiter.Email,
-                    Skills = "Спеціаліст (профіль створюється)",
-                    CreatedAt = DateTime.UtcNow
-                };
-                context.Candidates.Add(candidate);
-            }
-        }
-
         await context.SaveChangesAsync();
 
         var syncErrors = await identitySync.SyncRecruiterAsync(recruiter);
@@ -173,16 +154,14 @@ public class AccountController(
             await signInManager.SignInAsync(identityUser, isPersistent: false);
         }
 
-        TempData["SuccessMessage"] = selectedRole == "Candidate"
-            ? $"Вітаємо, {recruiter.FullName}! Ваш особистий кабінет кандидата готовий. Завантажте резюме та заповніть портфоліо."
-            : $"Вітаємо у системі, {recruiter.FullName}! Ваш кабінет готовий до роботи.";
+        TempData["SuccessMessage"] = $"Вітаємо у системі, {recruiter.FullName}! Ваш обліковий запис успішно створено.";
 
         if (!string.IsNullOrWhiteSpace(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
         {
             return Redirect(model.ReturnUrl);
         }
 
-        return RedirectToAction(selectedRole == "Candidate" ? "Profile" : "Index", selectedRole == "Candidate" ? "Account" : "Home");
+        return RedirectToAction("Index", "Home");
     }
 
     [Authorize]
@@ -207,12 +186,6 @@ public class AccountController(
         {
             return RedirectToAction("Index", "Home");
         }
-
-        model.Login = recruiter.Login;
-        model.Role = recruiter.Role;
-        model.CreatedAt = recruiter.CreatedAt;
-        model.InterviewsCount = await context.Interviews.CountAsync(i => i.RecruiterId == recruiter.Id);
-        model.FeedbacksCount = await context.InterviewFeedbacks.CountAsync(f => f.RecruiterId == recruiter.Id);
 
         var normalizedEmail = (model.Email ?? string.Empty).Trim().ToLower();
         if (!string.IsNullOrWhiteSpace(normalizedEmail) &&
@@ -245,14 +218,9 @@ public class AccountController(
 
         if (!ModelState.IsValid)
         {
-            // Re-populate candidate collections for view on validation error
             var fullModel = await BuildProfileViewModelAsync(recruiter);
             fullModel.FullName = model.FullName ?? string.Empty;
             fullModel.Email = model.Email ?? string.Empty;
-            fullModel.Phone = model.Phone;
-            fullModel.Skills = model.Skills;
-            fullModel.ExperienceYears = model.ExperienceYears;
-            fullModel.ResumeSummary = model.ResumeSummary;
             return View(fullModel);
         }
 
@@ -262,22 +230,6 @@ public class AccountController(
         if (wantsPasswordChange && !string.IsNullOrWhiteSpace(model.NewPassword))
         {
             recruiter.PasswordHash = passwordHasher.HashPassword(recruiter, model.NewPassword);
-        }
-
-        // Link with Candidate
-        var candidate = await context.Candidates
-            .FirstOrDefaultAsync(c => c.Email.ToLower() == recruiter.Email.ToLower() && !c.IsDeleted);
-
-        if (candidate is null && recruiter.Role == "Candidate")
-        {
-            candidate = new Candidate
-            {
-                FullName = recruiter.FullName,
-                Email = recruiter.Email,
-                Skills = model.Skills ?? "Спеціаліст",
-                CreatedAt = DateTime.UtcNow
-            };
-            context.Candidates.Add(candidate);
         }
 
         // Handle Avatar File Upload
@@ -297,65 +249,7 @@ public class AccountController(
                 }
                 var relativeUrl = $"/uploads/avatars/{fileName}";
                 recruiter.AvatarUrl = relativeUrl;
-
-                if (candidate is not null)
-                {
-                    candidate.AvatarUrl = relativeUrl;
-                }
             }
-        }
-
-        // Handle Resume File Upload
-        if (model.ResumeFile is not null && model.ResumeFile.Length > 0 && candidate is not null)
-        {
-            var allowedExts = new[] { ".pdf", ".doc", ".docx" };
-            var ext = Path.GetExtension(model.ResumeFile.FileName).ToLowerInvariant();
-            if (allowedExts.Contains(ext) && model.ResumeFile.Length <= 10 * 1024 * 1024)
-            {
-                var resumesDir = Path.Combine(environment.WebRootPath, "uploads", "resumes");
-                Directory.CreateDirectory(resumesDir);
-                var fileName = $"resume_{candidate.Id}_{Guid.NewGuid():N}{ext}";
-                var savePath = Path.Combine(resumesDir, fileName);
-                using (var stream = new FileStream(savePath, FileMode.Create))
-                {
-                    await model.ResumeFile.CopyToAsync(stream);
-                }
-                var relativePath = $"/uploads/resumes/{fileName}";
-                candidate.ResumeFilePath = relativePath;
-
-                // Run resume intelligence extraction
-                var parsed = resumeIntelligence.ParseResumeFile(savePath);
-                if (parsed.Success)
-                {
-                    if (!string.IsNullOrWhiteSpace(parsed.Summary))
-                    {
-                        candidate.ResumeSummary = parsed.Summary;
-                    }
-                    if (parsed.DetectedSkills.Count > 0 && (string.IsNullOrWhiteSpace(candidate.Skills) || candidate.Skills.Contains("профіль створюється")))
-                    {
-                        candidate.Skills = string.Join(", ", parsed.DetectedSkills);
-                    }
-                    if (parsed.DetectedExperienceYears.HasValue && candidate.ExperienceYears == 0)
-                    {
-                        candidate.ExperienceYears = parsed.DetectedExperienceYears.Value;
-                    }
-                    if (!string.IsNullOrWhiteSpace(parsed.DetectedPhone) && string.IsNullOrWhiteSpace(candidate.Phone))
-                    {
-                        candidate.Phone = parsed.DetectedPhone;
-                    }
-                }
-            }
-        }
-
-        // Update Candidate editable profile fields
-        if (candidate is not null)
-        {
-            if (!string.IsNullOrWhiteSpace(model.Phone)) candidate.Phone = model.Phone.Trim();
-            if (!string.IsNullOrWhiteSpace(model.Skills)) candidate.Skills = model.Skills.Trim();
-            if (model.ExperienceYears >= 0) candidate.ExperienceYears = model.ExperienceYears;
-            if (!string.IsNullOrWhiteSpace(model.ResumeSummary)) candidate.ResumeSummary = model.ResumeSummary.Trim();
-            candidate.FullName = recruiter.FullName;
-            candidate.Email = recruiter.Email;
         }
 
         await context.SaveChangesAsync();
@@ -368,8 +262,8 @@ public class AccountController(
         }
 
         TempData["SuccessMessage"] = wantsPasswordChange
-            ? "Профіль, портфоліо та новий пароль успішно збережено."
-            : "Дані профілю та портфоліо успішно оновлено.";
+            ? "Профіль та новий пароль успішно збережено."
+            : "Дані вашого профілю успішно оновлено.";
 
         return RedirectToAction(nameof(Profile));
     }
@@ -424,72 +318,38 @@ public class AccountController(
             AvatarUrl = recruiter.AvatarUrl,
             CreatedAt = recruiter.CreatedAt,
             InterviewsCount = await context.Interviews.CountAsync(i => i.RecruiterId == recruiter.Id),
-            FeedbacksCount = await context.InterviewFeedbacks.CountAsync(f => f.RecruiterId == recruiter.Id)
+            FeedbacksCount = await context.InterviewFeedbacks.CountAsync(f => f.RecruiterId == recruiter.Id),
+            CandidatesCount = await context.Candidates.CountAsync(c => !c.IsDeleted),
+            VacanciesCount = await context.Vacancies.CountAsync(v => v.Status == "Open")
         };
 
-        // Link with Candidate
-        var candidate = await context.Candidates
-            .Include(c => c.SoftSkillAssessments)
-            .Include(c => c.Applications)
-                .ThenInclude(a => a.Vacancy)
-            .FirstOrDefaultAsync(c => c.Email.ToLower() == recruiter.Email.ToLower() && !c.IsDeleted);
-
-        // If user is Candidate and no Candidate record exists yet, create one
-        if (candidate is null && recruiter.Role == "Candidate")
-        {
-            candidate = new Candidate
-            {
-                FullName = recruiter.FullName,
-                Email = recruiter.Email,
-                Skills = "C#, .NET, SQL, Git",
-                CreatedAt = DateTime.UtcNow,
-                AvatarUrl = recruiter.AvatarUrl
-            };
-            context.Candidates.Add(candidate);
-            await context.SaveChangesAsync();
-        }
-
-        if (candidate is not null)
-        {
-            model.IsCandidate = true;
-            model.CandidateId = candidate.Id;
-            model.Phone = candidate.Phone;
-            model.Skills = candidate.Skills;
-            model.ExperienceYears = candidate.ExperienceYears;
-            model.ResumeFilePath = candidate.ResumeFilePath;
-            model.ResumeSummary = candidate.ResumeSummary;
-            model.AvatarUrl ??= candidate.AvatarUrl;
-
-            // Load candidate soft skill assessments (most recent)
-            model.CandidateSoftSkills = candidate.SoftSkillAssessments
-                .OrderByDescending(s => s.Id)
-                .FirstOrDefault();
-
-            // Load applications
-            model.CandidateApplications = candidate.Applications
-                .OrderByDescending(a => a.AppliedAt)
-                .ToList();
-
-            // Load candidate interviews with feedback
-            model.CandidateInterviews = await context.Interviews
-                .Include(i => i.Application)
+        var feedbacks = await context.InterviewFeedbacks
+            .Include(f => f.Interview)
+                .ThenInclude(i => i!.Application)
+                    .ThenInclude(a => a!.Candidate)
+            .Include(f => f.Interview)
+                .ThenInclude(i => i!.Application)
                     .ThenInclude(a => a!.Vacancy)
-                .Include(i => i.Recruiter)
-                .Include(i => i.Feedbacks)
-                .Where(i => i.Application != null && i.Application.CandidateId == candidate.Id)
-                .OrderByDescending(i => i.InterviewDate)
-                .ToListAsync();
+            .Where(f => f.RecruiterId == recruiter.Id)
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync();
 
-            // If resume file exists on disk, parse it for intelligence insights
-            if (!string.IsNullOrWhiteSpace(candidate.ResumeFilePath))
-            {
-                var fullPath = Path.Combine(environment.WebRootPath, candidate.ResumeFilePath.TrimStart('/', '\\'));
-                if (System.IO.File.Exists(fullPath))
-                {
-                    model.ParsedResume = resumeIntelligence.ParseResumeFile(fullPath);
-                }
-            }
+        if (feedbacks.Count > 0)
+        {
+            model.AverageFeedbackScore = Math.Round(feedbacks.Average(f => f.Score), 1);
+            model.MyRecentFeedbacks = feedbacks.Take(10).ToList();
         }
+
+        model.MyUpcomingInterviews = await context.Interviews
+            .Include(i => i.Application)
+                .ThenInclude(a => a!.Candidate)
+            .Include(i => i.Application)
+                .ThenInclude(a => a!.Vacancy)
+            .Include(i => i.Feedbacks)
+            .Where(i => i.RecruiterId == recruiter.Id && i.InterviewDate >= DateTime.UtcNow.Date)
+            .OrderBy(i => i.InterviewDate)
+            .Take(10)
+            .ToListAsync();
 
         return model;
     }

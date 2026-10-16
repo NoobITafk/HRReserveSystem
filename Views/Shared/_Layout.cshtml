@@ -28,7 +28,6 @@
     var canRecruit = User.IsInRole("Admin") || User.IsInRole("Recruiter");
     var canInterview = User.IsInRole("Admin") || User.IsInRole("Interviewer");
     var isAdmin = User.IsInRole("Admin");
-    var isCandidate = User.IsInRole("Candidate");
     var displayName = User.FindFirst("DisplayName")?.Value ?? User.Identity?.Name ?? "Користувач";
     var displayInitial = string.IsNullOrWhiteSpace(displayName) ? "H" : displayName.Trim()[0].ToString().ToUpperInvariant();
     var avatarUrl = User.FindFirst("AvatarUrl")?.Value;
@@ -87,53 +86,33 @@
                         </a>
                     }
 
-                    @if (isCandidate)
+                    <div class="sidebar-section-label">Інтерв'ю та оцінка</div>
+                    <a class="sidebar-link @(currentController == "Interviews" && currentAction != "Calendar" ? "active" : "")" asp-area="" asp-controller="Interviews" asp-action="Index">
+                        <span class="sidebar-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
+                        </span>
+                        <span>Співбесіди</span>
+                    </a>
+                    <a class="sidebar-link @(activeClass("Interviews", "Calendar"))" asp-area="" asp-controller="Interviews" asp-action="Calendar">
+                        <span class="sidebar-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>
+                        </span>
+                        <span>Календар зустрічей</span>
+                    </a>
+                    @if (canInterview)
                     {
-                        <div class="sidebar-section-label">Мій простір</div>
-                        <a class="sidebar-link @(activeClass("Account", "Profile"))" asp-area="" asp-controller="Account" asp-action="Profile">
+                        <a class="sidebar-link @(activeClass("InterviewFeedbacks", ""))" asp-area="" asp-controller="InterviewFeedbacks" asp-action="Index">
                             <span class="sidebar-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
                             </span>
-                            <span>Портфоліо та резюме</span>
+                            <span>Експертні відгуки</span>
                         </a>
-                        <a class="sidebar-link @(activeClass("Vacancies", ""))" asp-area="" asp-controller="Vacancies" asp-action="Index">
+                        <a class="sidebar-link @(activeClass("SoftSkillAssessments", ""))" asp-area="" asp-controller="SoftSkillAssessments" asp-action="Index">
                             <span class="sidebar-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                                <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                             </span>
-                            <span>Відкриті вакансії</span>
+                            <span>Матриця Soft Skills</span>
                         </a>
-                    }
-
-                    @if (!isCandidate)
-                    {
-                        <div class="sidebar-section-label">Інтерв'ю та оцінка</div>
-                        <a class="sidebar-link @(currentController == "Interviews" && currentAction != "Calendar" ? "active" : "")" asp-area="" asp-controller="Interviews" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
-                            </span>
-                            <span>Співбесіди</span>
-                        </a>
-                        <a class="sidebar-link @(activeClass("Interviews", "Calendar"))" asp-area="" asp-controller="Interviews" asp-action="Calendar">
-                            <span class="sidebar-icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>
-                            </span>
-                            <span>Календар зустрічей</span>
-                        </a>
-                        @if (canInterview)
-                        {
-                            <a class="sidebar-link @(activeClass("InterviewFeedbacks", ""))" asp-area="" asp-controller="InterviewFeedbacks" asp-action="Index">
-                                <span class="sidebar-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
-                                </span>
-                                <span>Експертні відгуки</span>
-                            </a>
-                            <a class="sidebar-link @(activeClass("SoftSkillAssessments", ""))" asp-area="" asp-controller="SoftSkillAssessments" asp-action="Index">
-                                <span class="sidebar-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                                </span>
-                                <span>Матриця Soft Skills</span>
-                            </a>
-                        }
                     }
 
                     <div class="sidebar-section-label">Організація</div>
