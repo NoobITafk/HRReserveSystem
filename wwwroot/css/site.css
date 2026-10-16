@@ -853,7 +853,13 @@ a:hover {
   aspect-ratio: 1 / 1 !important;
   object-fit: cover !important;
   border-radius: 50% !important;
-  display: block !important;
+  display: block;
+}
+
+.profile-avatar-img.d-none,
+img.profile-avatar-img.d-none,
+img.profile-avatar-img[hidden] {
+  display: none !important;
 }
 
 .profile-avatar-wrapper {

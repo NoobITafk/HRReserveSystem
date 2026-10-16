@@ -13,11 +13,12 @@
                     @if (!string.IsNullOrWhiteSpace(Model.AvatarUrl))
                     {
                         <img src="@Model.AvatarUrl" alt="@Model.FullName" class="profile-avatar profile-avatar-xl profile-avatar-img shadow-sm" id="avatarPreview" />
+                        <div class="profile-avatar profile-avatar-xl shadow-sm d-none" id="avatarPreviewFallback" style="display: none !important;">@initial</div>
                     }
                     else
                     {
                         <div class="profile-avatar profile-avatar-xl shadow-sm" id="avatarPreviewFallback">@initial</div>
-                        <img src="" alt="" class="profile-avatar profile-avatar-xl profile-avatar-img shadow-sm d-none" id="avatarPreview" />
+                        <img src="" alt="@Model.FullName" class="profile-avatar profile-avatar-xl profile-avatar-img shadow-sm d-none" id="avatarPreview" style="display: none !important;" />
                     }
                     <label for="avatarFileInput" class="avatar-edit-badge" title="Змінити фото">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -565,9 +566,11 @@
                         if (avatarPreview) {
                             avatarPreview.src = event.target.result;
                             avatarPreview.classList.remove('d-none');
+                            avatarPreview.style.setProperty('display', 'block', 'important');
                         }
                         if (avatarFallback) {
                             avatarFallback.classList.add('d-none');
+                            avatarFallback.style.setProperty('display', 'none', 'important');
                         }
                         if (avatarSubPreview) {
                             avatarSubPreview.src = event.target.result;
