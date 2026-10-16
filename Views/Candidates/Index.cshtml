@@ -70,11 +70,11 @@
                             <div class="d-flex align-items-center gap-2">
                                 @if (!string.IsNullOrWhiteSpace(item.AvatarUrl))
                                 {
-                                    <img src="@item.AvatarUrl" alt="@item.FullName" class="profile-avatar profile-avatar-img shadow-sm" style="height:34px;width:34px;min-width:34px;" />
+                                    <img src="@item.AvatarUrl" alt="@item.FullName" class="profile-avatar profile-avatar-sm profile-avatar-img shadow-sm" />
                                 }
                                 else
                                 {
-                                    <span class="profile-avatar" style="height:34px;min-width:34px;font-size:0.82rem;">@initial</span>
+                                    <span class="profile-avatar profile-avatar-sm">@initial</span>
                                 }
                                 <div>
                                     <div class="fw-semibold">@item.FullName</div>
