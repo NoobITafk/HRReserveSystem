@@ -201,54 +201,25 @@
                     @if (isAuthenticated)
                     {
                         <div class="app-dropdown" data-dropdown>
-                            <button class="btn btn-sm btn-icon btn-notification" type="button" aria-label="Сповіщення" aria-expanded="false" data-dropdown-toggle data-notification-toggle>
-                                <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-                                <span class="notification-dot" data-notification-dot></span>
-                            </button>
-                            <div class="app-dropdown-menu notification-menu" data-dropdown-menu>
-                                <div class="dropdown-title d-flex align-items-center justify-content-between">
-                                    <span>Центр сповіщень</span>
-                                    <span class="badge-soft badge-soft-emerald">Live</span>
-                                </div>
-                                <div class="notification-list" data-notification-list>
-                                    <div class="notification-item">
-                                        <strong>Календар співбесід активний</strong>
-                                        <span>Перевірте заплановані зустрічі у розділі співбесід.</span>
-                                    </div>
-                                    <div class="notification-item">
-                                        <strong>Кадровий резерв синхронізовано</strong>
-                                        <span>Усі зміни етапів відбору та оцінки збережено.</span>
-                                    </div>
-                                </div>
-                                <div class="notification-empty d-none" data-notification-empty>Нових повідомлень немає</div>
-                            </div>
-                        </div>
-                    }
-                    <button class="btn btn-sm btn-theme-toggle" type="button" data-theme-toggle aria-label="Перемкнути тему" aria-pressed="false" title="Перемкнути світлу / темну тему">
-                        <span class="theme-toggle-icon" aria-hidden="true">
-                            <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-                        </span>
-                        <span class="theme-toggle-text d-none d-sm-inline">Темна</span>
-                    </button>
-                    @if (isAuthenticated)
-                    {
-                        <div class="app-dropdown d-none d-md-block" data-dropdown>
-                            <button class="profile-button" type="button" aria-expanded="false" data-dropdown-toggle>
-                                <span class="profile-avatar topbar-avatar" aria-hidden="true">
-                                    @if (!string.IsNullOrWhiteSpace(avatarUrl))
-                                    {
-                                        <img src="@avatarUrl" alt="@displayName" class="profile-avatar-img" />
-                                    }
-                                    else
-                                    {
-                                        @displayInitial
-                                    }
+                            <button class="profile-button" type="button" aria-expanded="false" data-dropdown-toggle aria-label="Меню облікового запису та налаштувань">
+                                <span class="topbar-avatar-wrapper">
+                                    <span class="profile-avatar topbar-avatar" aria-hidden="true">
+                                        @if (!string.IsNullOrWhiteSpace(avatarUrl))
+                                        {
+                                            <img src="@avatarUrl" alt="@displayName" class="profile-avatar-img" />
+                                        }
+                                        else
+                                        {
+                                            @displayInitial
+                                        }
+                                    </span>
+                                    <span class="notification-dot" data-notification-dot title="Є актуальні оновлення"></span>
                                 </span>
-                                <span class="profile-copy">
+                                <span class="profile-copy d-none d-sm-grid">
                                     <span class="profile-name">@displayName</span>
                                     <span class="profile-role">@roleLabel</span>
                                 </span>
-                                <span class="profile-caret" aria-hidden="true">
+                                <span class="profile-caret d-none d-sm-inline-flex" aria-hidden="true">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                                 </span>
                             </button>
@@ -264,15 +235,78 @@
                                             @displayInitial
                                         }
                                     </span>
-                                    <span class="min-w-0">
+                                    <div class="min-w-0">
                                         <strong class="text-truncate">@displayName</strong>
                                         <small>@roleLabel</small>
-                                    </span>
+                                    </div>
                                 </div>
-                                <a class="dropdown-item-soft mb-1" asp-controller="Account" asp-action="Profile">
+
+                                <!-- Перемикач теми оформлення -->
+                                <div class="profile-menu-section">
+                                    <button class="profile-theme-toggle" type="button" data-theme-toggle aria-label="Перемкнути тему" title="Перемкнути тему">
+                                        <span class="theme-toggle-icon" aria-hidden="true">
+                                            <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                                        </span>
+                                        <span class="theme-toggle-label">Тема оформлення</span>
+                                        <span class="theme-toggle-text badge-soft badge-soft-emerald">Темна</span>
+                                    </button>
+                                </div>
+
+                                <!-- Персональний блок сповіщень -->
+                                <div class="profile-notifications-section" data-notification-section>
+                                    <div class="profile-notifications-header">
+                                        <span class="d-flex align-items-center gap-1">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                                            <span>Сповіщення</span>
+                                        </span>
+                                        <span class="badge-soft badge-soft-emerald" data-notification-badge>Активно</span>
+                                    </div>
+                                    <div class="profile-notifications-list" data-notification-list>
+                                        <a class="profile-notification-item" asp-controller="Interviews" asp-action="Index">
+                                            <div class="notification-item-text">
+                                                <strong>Календар співбесід</strong>
+                                                <span>Перевірте заплановані зустрічі</span>
+                                            </div>
+                                            <span class="notification-item-arrow" aria-hidden="true">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg>
+                                            </span>
+                                        </a>
+                                        @if (canInterview)
+                                        {
+                                            <a class="profile-notification-item" asp-controller="InterviewFeedbacks" asp-action="Index">
+                                                <div class="notification-item-text">
+                                                    <strong>Оцінки та фідбеки</strong>
+                                                    <span>Заповніть висновки за кандидатами</span>
+                                                </div>
+                                                <span class="notification-item-arrow" aria-hidden="true">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg>
+                                                </span>
+                                            </a>
+                                        }
+                                        else if (canRecruit)
+                                        {
+                                            <a class="profile-notification-item" asp-controller="Candidates" asp-action="Index">
+                                                <div class="notification-item-text">
+                                                    <strong>Кадровий резерв</strong>
+                                                    <span>Актуальні кандидати та заявки</span>
+                                                </div>
+                                                <span class="notification-item-arrow" aria-hidden="true">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg>
+                                                </span>
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="profile-menu-divider"></div>
+
+                                <a class="dropdown-item-soft" asp-controller="Account" asp-action="Profile">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
-                                    <span>Налаштування профілю</span>
+                                    <span>Мій профіль та налаштування</span>
                                 </a>
+
+                                <div class="profile-menu-divider"></div>
+
                                 <form asp-controller="Account" asp-action="Logout" method="post">
                                     <button class="dropdown-item-soft dropdown-item-danger w-100 text-start" type="submit">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
@@ -363,6 +397,15 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Закрити"></button>
             </div>
             <div class="offcanvas-body d-flex flex-column">
+                <div class="mb-3">
+                    <button class="profile-theme-toggle w-100" type="button" data-theme-toggle aria-label="Перемкнути тему" title="Перемкнути тему">
+                        <span class="theme-toggle-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                        </span>
+                        <span class="theme-toggle-label">Тема оформлення</span>
+                        <span class="theme-toggle-text badge-soft badge-soft-emerald">Темна</span>
+                    </button>
+                </div>
                 <nav class="sidebar-nav flex-grow-1">
                     <a class="sidebar-link @(activeClass("Home", "Index"))" asp-area="" asp-controller="Home" asp-action="Index">
                         <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span>

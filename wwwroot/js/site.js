@@ -147,35 +147,32 @@
     }
 
     function initNotifications() {
-        const toggle = document.querySelector("[data-notification-toggle]");
-        const dot = document.querySelector("[data-notification-dot]");
+        const dots = document.querySelectorAll("[data-notification-dot]");
         const list = document.querySelector("[data-notification-list]");
         const empty = document.querySelector("[data-notification-empty]");
 
         function syncDot() {
-            if (!dot) {
-                return;
-            }
-
             const isRead = safeGet(notificationsStorageKey) === "true";
-            dot.hidden = isRead;
-            dot.classList.toggle("is-hidden", isRead);
+            dots.forEach(function (dot) {
+                dot.hidden = isRead;
+                dot.classList.toggle("is-hidden", isRead);
+            });
         }
 
         if (list && empty) {
-            const hasMessages = list.querySelectorAll(".notification-item").length > 0;
+            const hasMessages = list.querySelectorAll(".profile-notification-item, .notification-item").length > 0;
             list.classList.toggle("d-none", !hasMessages);
             empty.classList.toggle("d-none", hasMessages);
         }
 
         syncDot();
 
-        if (toggle) {
-            toggle.addEventListener("click", function () {
+        document.querySelectorAll("[data-notification-toggle], .profile-button").forEach(function (btn) {
+            btn.addEventListener("click", function () {
                 safeSet(notificationsStorageKey, "true");
                 syncDot();
             });
-        }
+        });
     }
 
     function initGlobalSearch() {
