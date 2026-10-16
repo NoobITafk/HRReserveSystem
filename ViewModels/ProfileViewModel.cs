@@ -1,4 +1,7 @@
 using System.ComponentModel.DataAnnotations;
+using HRReserveSystem.Models;
+using HRReserveSystem.Services;
+using Microsoft.AspNetCore.Http;
 
 namespace HRReserveSystem.ViewModels;
 
@@ -23,6 +26,32 @@ public class ProfileViewModel
     [Display(Name = "Роль")]
     public string Role { get; set; } = string.Empty;
 
+    [Display(Name = "Аватар / Фото")]
+    public string? AvatarUrl { get; set; }
+
+    [Display(Name = "Завантажити нове фото")]
+    public IFormFile? AvatarFile { get; set; }
+
+    [Display(Name = "Телефон")]
+    [Phone(ErrorMessage = "Введіть коректний номер телефону.")]
+    public string? Phone { get; set; }
+
+    [Display(Name = "Ключові навички та стек")]
+    public string? Skills { get; set; }
+
+    [Display(Name = "Досвід роботи, років")]
+    [Range(0, 60, ErrorMessage = "Досвід має бути від 0 до 60 років.")]
+    public int ExperienceYears { get; set; }
+
+    [Display(Name = "Файл резюме (CV)")]
+    public string? ResumeFilePath { get; set; }
+
+    [Display(Name = "Завантажити нове резюме (PDF/DOCX)")]
+    public IFormFile? ResumeFile { get; set; }
+
+    [Display(Name = "Короткий огляд резюме")]
+    public string? ResumeSummary { get; set; }
+
     [Display(Name = "Дата реєстрації")]
     public DateTime CreatedAt { get; set; }
 
@@ -40,7 +69,15 @@ public class ProfileViewModel
     [Display(Name = "Підтвердження нового пароля")]
     public string? ConfirmNewPassword { get; set; }
 
+    // Stats for Recruiters/Interviewers
     public int InterviewsCount { get; set; }
-
     public int FeedbacksCount { get; set; }
+
+    // Candidate Portfolio Information
+    public bool IsCandidate { get; set; }
+    public int? CandidateId { get; set; }
+    public SoftSkillAssessment? CandidateSoftSkills { get; set; }
+    public List<Application> CandidateApplications { get; set; } = [];
+    public List<Interview> CandidateInterviews { get; set; } = [];
+    public ParsedResumeResult? ParsedResume { get; set; }
 }

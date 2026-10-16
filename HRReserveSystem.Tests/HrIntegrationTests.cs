@@ -812,6 +812,68 @@ public class HrIntegrationTests
         Assert.Equal("Offer", app.Status);
     }
 
+    [Fact]
+    public void ResumeIntelligenceService_Extracts_Skills_And_Contact_Correctly()
+    {
+        var service = new ResumeIntelligenceService();
+        var sampleText = @"
+            Олександр Шевченко
+            Senior .NET Developer
+            Email: oleksandr.dev@example.com
+            Телефон: +380 50 123 4567
+            Досвід роботи: 5 років комерційної розробки на C#, ASP.NET Core, PostgreSQL, Docker, Kubernetes та React.
+            Архітектура Clean Architecture, Microservices, REST API.
+        ";
+
+        var parsed = service.ParseText(sampleText);
+
+        Assert.NotNull(parsed);
+        Assert.Equal("oleksandr.dev@example.com", parsed.DetectedEmail);
+        Assert.Equal("+380 50 123 4567", parsed.DetectedPhone);
+        Assert.Equal(5, parsed.DetectedExperienceYears);
+        Assert.Contains("C#", parsed.DetectedSkills);
+        Assert.Contains(".NET", parsed.DetectedSkills);
+        Assert.Contains("PostgreSQL", parsed.DetectedSkills);
+        Assert.Contains("Docker", parsed.DetectedSkills);
+    }
+
+    [Fact]
+    public async Task Candidate_Registration_And_Profile_Displays_Successfully()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var regResponse = await PostFormAsync(client, "/Account/Register", new Dictionary<string, string>
+        {
+            ["FullName"] = "Кандидат Тестовий",
+            ["Email"] = "candidate.test@example.com",
+            ["Login"] = "candidate_test",
+            ["Password"] = "candidate123",
+            ["ConfirmPassword"] = "candidate123",
+            ["Role"] = "Candidate"
+        });
+
+        Assert.Equal(HttpStatusCode.Redirect, regResponse.StatusCode);
+
+        // Verify in database
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var candidateUser = await db.Recruiters.FirstOrDefaultAsync(r => r.Login == "candidate_test");
+        Assert.NotNull(candidateUser);
+        Assert.Equal("Candidate", candidateUser.Role);
+
+        // Candidate entity should be auto-created
+        var candidateEntity = await db.Candidates.FirstOrDefaultAsync(c => c.Email == "candidate.test@example.com");
+        Assert.NotNull(candidateEntity);
+
+        // Access Profile page
+        var profileResponse = await client.GetAsync("/Account/Profile");
+        Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
+        var html = await profileResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Портфоліо та резюме", html);
+        Assert.Contains("Оцінки Soft Skills", html);
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

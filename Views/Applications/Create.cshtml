@@ -4,41 +4,62 @@
     ViewData["Title"] = "Нова заявка";
 }
 
-<h1 class="h2 mb-3">Нова заявка</h1>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow">Воронка рекрутингу</span>
+            <h1 class="h2 fw-bold mb-1">Нова заявка</h1>
+            <p class="text-muted mb-0">Подання кандидата на відкриту вакансію та запуск процесу відбору.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
+    </div>
 
-<form asp-action="Create" class="row g-3">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="col-md-6">
-        <label asp-for="CandidateId" class="form-label"></label>
-        <select asp-for="CandidateId" class="form-select" asp-items="ViewBag.CandidateId"></select>
-        <span asp-validation-for="CandidateId" class="text-danger"></span>
+    <div class="form-card">
+        <form asp-action="Create" class="row g-3">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small col-12 mb-2"></div>
+            
+            <div class="col-md-6">
+                <label asp-for="CandidateId" class="form-label fw-semibold">Кандидат</label>
+                <select asp-for="CandidateId" class="form-select" asp-items="ViewBag.CandidateId"></select>
+                <span asp-validation-for="CandidateId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="VacancyId" class="form-label fw-semibold">Позиція / Вакансія</label>
+                <select asp-for="VacancyId" class="form-select" asp-items="ViewBag.VacancyId"></select>
+                <span asp-validation-for="VacancyId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Status" class="form-label fw-semibold">Початковий етап</label>
+                <select asp-for="Status" class="form-select">
+                    @foreach (var status in HrOptions.ApplicationStatuses)
+                    {
+                        <option value="@status">@HrOptions.ApplicationStatusLabel(status)</option>
+                    }
+                </select>
+                <span asp-validation-for="Status" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="RecruiterComment" class="form-label fw-semibold">Коментар рекрутера</label>
+                <textarea asp-for="RecruiterComment" class="form-control" rows="3" placeholder="Джерело контакту, враження від первинного скринінгу, заплановані дії..."></textarea>
+                <span asp-validation-for="RecruiterComment" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+                <button type="submit" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Створити заявку
+                </button>
+            </div>
+        </form>
     </div>
-    <div class="col-md-6">
-        <label asp-for="VacancyId" class="form-label"></label>
-        <select asp-for="VacancyId" class="form-select" asp-items="ViewBag.VacancyId"></select>
-        <div class="form-text">У списку показані тільки вакансії, які вже створені в розділі "Вакансії".</div>
-        <span asp-validation-for="VacancyId" class="text-danger"></span>
-    </div>
-    <div class="col-md-6">
-        <label asp-for="Status" class="form-label"></label>
-        <select asp-for="Status" class="form-select">
-            @foreach (var status in HrOptions.ApplicationStatuses)
-            {
-                <option value="@status">@status</option>
-            }
-        </select>
-        <span asp-validation-for="Status" class="text-danger"></span>
-    </div>
-    <div class="col-12">
-        <label asp-for="RecruiterComment" class="form-label"></label>
-        <textarea asp-for="RecruiterComment" class="form-control" rows="4" placeholder="Коротко опишіть причину статусу або наступний крок"></textarea>
-        <span asp-validation-for="RecruiterComment" class="text-danger"></span>
-    </div>
-    <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-success">Зберегти</button>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-    </div>
-</form>
+</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

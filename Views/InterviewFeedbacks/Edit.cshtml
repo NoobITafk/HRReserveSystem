@@ -4,57 +4,83 @@
     ViewData["Title"] = "Редагувати відгук";
 }
 
-<h1 class="h2 mb-3">Редагувати відгук</h1>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow">Оцінювання та відгуки</span>
+            <h1 class="h2 fw-bold mb-1">Редагувати відгук</h1>
+            <p class="text-muted mb-0">Оновлення оцінки, коментаря або рекомендації щодо найму.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Деталі відгуку</a>
+            <a class="btn btn-outline-secondary" asp-action="Index">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                До списку
+            </a>
+        </div>
+    </div>
 
-<form asp-action="Edit" class="row g-3">
-    <input type="hidden" asp-for="Id" />
-    <input type="hidden" asp-for="CreatedAt" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="col-md-8">
-        <label asp-for="InterviewId" class="form-label"></label>
-        <select asp-for="InterviewId" class="form-select" asp-items="ViewBag.InterviewId"></select>
-        <span asp-validation-for="InterviewId" class="text-danger"></span>
+    <div class="form-card">
+        <form asp-action="Edit" class="row g-3">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="CreatedAt" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small col-12 mb-2"></div>
+            
+            <div class="col-md-8">
+                <label asp-for="InterviewId" class="form-label fw-semibold">Співбесіда / Кандидат</label>
+                <select asp-for="InterviewId" class="form-select" asp-items="ViewBag.InterviewId"></select>
+                <span asp-validation-for="InterviewId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="RecruiterId" class="form-label fw-semibold">Автор відгуку</label>
+                @if (User.IsInRole("Admin"))
+                {
+                    <select asp-for="RecruiterId" class="form-select" asp-items="ViewBag.RecruiterId">
+                        <option value="">Не вказано</option>
+                    </select>
+                }
+                else
+                {
+                    <input type="hidden" asp-for="RecruiterId" />
+                    <input class="form-control" value="Поточний користувач" disabled />
+                }
+                <span asp-validation-for="RecruiterId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Score" class="form-label fw-semibold">Загальна оцінка (1–10)</label>
+                <input asp-for="Score" class="form-control font-monospace" type="number" min="1" max="10" />
+                <span asp-validation-for="Score" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-8">
+                <label asp-for="Recommendation" class="form-label fw-semibold">Рекомендація щодо кандидата</label>
+                <select asp-for="Recommendation" class="form-select">
+                    @foreach (var recommendation in HrOptions.FeedbackRecommendations)
+                    {
+                        <option value="@recommendation">@HrOptions.FeedbackRecommendationLabel(recommendation)</option>
+                    }
+                </select>
+                <span asp-validation-for="Recommendation" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Comment" class="form-label fw-semibold">Деталізований відгук та враження</label>
+                <textarea asp-for="Comment" class="form-control" rows="5"></textarea>
+                <span asp-validation-for="Comment" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+                <button type="submit" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Зберегти зміни
+                </button>
+            </div>
+        </form>
     </div>
-    <div class="col-md-4">
-        <label asp-for="RecruiterId" class="form-label"></label>
-        @if (User.IsInRole("Admin"))
-        {
-            <select asp-for="RecruiterId" class="form-select" asp-items="ViewBag.RecruiterId">
-                <option value="">Не вказано</option>
-            </select>
-        }
-        else
-        {
-            <input type="hidden" asp-for="RecruiterId" />
-            <input class="form-control" value="Поточний інтерв'юер" disabled />
-        }
-        <span asp-validation-for="RecruiterId" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="Score" class="form-label"></label>
-        <input asp-for="Score" class="form-control" min="1" max="10" />
-        <span asp-validation-for="Score" class="text-danger"></span>
-    </div>
-    <div class="col-md-8">
-        <label asp-for="Recommendation" class="form-label"></label>
-        <select asp-for="Recommendation" class="form-select">
-            @foreach (var recommendation in HrOptions.FeedbackRecommendations)
-            {
-                <option value="@recommendation">@recommendation</option>
-            }
-        </select>
-        <span asp-validation-for="Recommendation" class="text-danger"></span>
-    </div>
-    <div class="col-12">
-        <label asp-for="Comment" class="form-label"></label>
-        <textarea asp-for="Comment" class="form-control" rows="5"></textarea>
-        <span asp-validation-for="Comment" class="text-danger"></span>
-    </div>
-    <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-success">Зберегти</button>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-    </div>
-</form>
+</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

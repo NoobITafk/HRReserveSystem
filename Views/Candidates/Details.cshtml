@@ -11,7 +11,14 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div class="d-flex align-items-center gap-3">
-        <div class="profile-avatar profile-avatar-lg">@initial</div>
+        @if (!string.IsNullOrWhiteSpace(Model.AvatarUrl))
+        {
+            <img src="@Model.AvatarUrl" alt="@Model.FullName" class="profile-avatar profile-avatar-lg profile-avatar-img shadow-sm" />
+        }
+        else
+        {
+            <div class="profile-avatar profile-avatar-lg">@initial</div>
+        }
         <div>
             <span class="section-eyebrow">Досьє кандидата #@Model.Id</span>
             <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2">
@@ -30,13 +37,13 @@
             <form asp-action="Restore" asp-route-id="@Model.Id" method="post">
                 <button class="btn btn-outline-success" type="submit">Відновити</button>
             </form>
-            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showHidden="true">← Назад до прихованих</a>
+            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showHidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Назад до прихованих</a>
         }
         else
         {
             <a class="btn btn-primary" asp-controller="Applications" asp-action="Create">Подати на вакансію</a>
             <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
-            <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
+            <a class="btn btn-outline-secondary" asp-action="Index"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>До списку</a>
         }
     </div>
 </div>
@@ -141,6 +148,34 @@
                                 <a class="btn btn-sm btn-outline-secondary" asp-action="DownloadResume" asp-route-id="@Model.Id">Завантажити файл</a>
                             </div>
                         </div>
+
+                        @if (ViewBag.ParsedResume is HRReserveSystem.Services.ParsedResumeResult parsed && parsed.Success)
+                        {
+                            <div class="p-3 rounded-3 surface-elevated border border-emerald-subtle mb-3">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="badge-soft badge-soft-emerald">Аналіз PDF резюме</span>
+                                    <small class="text-muted">Розпізнано системою</small>
+                                </div>
+                                @if (parsed.DetectedSkills.Count > 0)
+                                {
+                                    <div class="mb-2">
+                                        <div class="fw-semibold small text-muted text-uppercase mb-1" style="font-size: 0.72rem;">Виявлений стек:</div>
+                                        <div class="d-flex flex-wrap gap-1">
+                                            @foreach (var skill in parsed.DetectedSkills.Take(10))
+                                            {
+                                                <span class="badge-soft badge-soft-blue" style="font-size: 0.75rem;">@skill</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(parsed.Summary))
+                                {
+                                    <div class="small text-muted leading-relaxed" style="font-size: 0.82rem;">
+                                        @parsed.Summary
+                                    </div>
+                                }
+                            </div>
+                        }
                     }
                 </div>
 
@@ -240,4 +275,51 @@
             }
         </div>
     </div>
+
+    @if (ViewBag.Interviews is List<Interview> interviews && interviews.Count > 0)
+    {
+        <div class="col-12 mt-2">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">Історія співбесід та відгуки інтерв'юерів</h2>
+                    <span class="badge-soft badge-soft-blue font-monospace">@interviews.Count співбесід</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var interview in interviews)
+                        {
+                            <div class="p-3 rounded-3 surface-subtle border">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div>
+                                        <span class="badge-soft badge-soft-blue me-2">@HrOptions.InterviewTypeLabel(interview.InterviewType)</span>
+                                        <strong>@(interview.Application?.Vacancy?.Title ?? "Загальна позиція")</strong>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="text-muted small font-monospace">@interview.InterviewDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                        <span class="@HrOptions.InterviewResultBadge(interview.Result)">@HrOptions.InterviewResultLabel(interview.Result)</span>
+                                    </div>
+                                </div>
+                                @if (interview.Feedbacks.Count > 0)
+                                {
+                                    <div class="mt-2 pt-2 border-top">
+                                        <div class="fw-semibold small text-muted text-uppercase mb-2" style="font-size: 0.72rem;">Експертні відгуки:</div>
+                                        @foreach (var fb in interview.Feedbacks)
+                                        {
+                                            <div class="p-2 rounded surface-elevated border mb-1 small">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span class="fw-bold font-monospace text-emerald">Оцінка: @fb.Score / 10</span>
+                                                    <span class="@HrOptions.FeedbackRecommendationBadge(fb.Recommendation)">@HrOptions.FeedbackRecommendationLabel(fb.Recommendation)</span>
+                                                </div>
+                                                <div class="text-muted">@fb.Comment</div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>

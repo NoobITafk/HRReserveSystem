@@ -1,21 +1,58 @@
 @model Recruiter
 
 @{
-    ViewData["Title"] = "Видалити рекрутера";
+    ViewData["Title"] = "Видалити користувача";
 }
 
-<h1 class="h2 mb-3">Видалити рекрутера</h1>
-<div class="alert alert-warning">Підтвердіть видалення рекрутера <strong>@Model.FullName</strong>.</div>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow text-danger">Адміністрування команди</span>
+            <h1 class="h2 fw-bold mb-1">Видалити користувача</h1>
+            <p class="text-muted mb-0">Підтвердження відкликання доступу та видалення облікового запису.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
+    </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Електронна пошта</dt>
-    <dd class="col-sm-9">@Model.Email</dd>
-    <dt class="col-sm-3">Роль</dt>
-    <dd class="col-sm-9"><span class="badge @HrOptions.RecruiterRoleBadge(Model.Role)">@Model.Role</span></dd>
-</dl>
+    <div class="form-card">
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <span class="badge-soft badge-soft-rose">Увага</span>
+            <div>Ви дійсно бажаєте безповоротно видалити обліковий запис співробітника <strong>@Model.FullName</strong>? Користувач більше не зможе авторизуватись у системі.</div>
+        </div>
 
-<form asp-action="Delete">
-    <input type="hidden" asp-for="Id" />
-    <button type="submit" class="btn btn-danger">Видалити</button>
-    <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-</form>
+        <div class="detail-list mb-4">
+            <div class="detail-row">
+                <dt>Повне ім'я</dt>
+                <dd class="fw-bold">@Model.FullName</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Корпоративний Email</dt>
+                <dd>@Model.Email</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Логін користувача</dt>
+                <dd class="font-monospace">@Model.Login</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Системна роль</dt>
+                <dd><span class="badge @HrOptions.RecruiterRoleBadge(Model.Role)">@Model.Role</span></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Дата реєстрації</dt>
+                <dd class="font-monospace text-muted">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+            </div>
+        </div>
+
+        <form asp-action="Delete" class="d-flex flex-wrap gap-2 justify-content-between align-items-center pt-3 border-top">
+            <input type="hidden" asp-for="Id" />
+            <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+            <button type="submit" class="btn btn-danger">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                Підтвердити видалення
+            </button>
+        </form>
+    </div>
+</div>

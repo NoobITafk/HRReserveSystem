@@ -91,23 +91,32 @@
                         </div>
 
                         <div class="col-12">
-                            <label class="form-label fw-medium d-block mb-2">Оберіть вашу роль у команді</label>
+                            <label class="form-label fw-medium d-block mb-2">Оберіть роль для вашого акаунту</label>
                             <div class="row g-2">
-                                <div class="col-sm-6">
-                                    <label class="role-selector-card">
-                                        <input type="radio" asp-for="Role" value="Recruiter" class="form-check-input" checked />
+                                <div class="col-md-4">
+                                    <label class="role-selector-card h-100">
+                                        <input type="radio" asp-for="Role" value="Candidate" class="form-check-input" checked />
+                                        <span class="role-selector-body">
+                                            <span class="fw-semibold d-block text-emerald">Кандидат</span>
+                                            <small class="text-muted">Особисте портфоліо, резюме, статус відбору та оцінки</small>
+                                        </span>
+                                    </label>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="role-selector-card h-100">
+                                        <input type="radio" asp-for="Role" value="Recruiter" class="form-check-input" />
                                         <span class="role-selector-body">
                                             <span class="fw-semibold d-block">Рекрутер</span>
                                             <small class="text-muted">Кандидати, вакансії, заявки та співбесіди</small>
                                         </span>
                                     </label>
                                 </div>
-                                <div class="col-sm-6">
-                                    <label class="role-selector-card">
+                                <div class="col-md-4">
+                                    <label class="role-selector-card h-100">
                                         <input type="radio" asp-for="Role" value="Interviewer" class="form-check-input" />
                                         <span class="role-selector-body">
                                             <span class="fw-semibold d-block">Інтерв'юер</span>
-                                            <small class="text-muted">Оцінка кандидатів, відгуки та Soft Skills</small>
+                                            <small class="text-muted">Оцінка знань, відгуки та матриця Soft Skills</small>
                                         </span>
                                     </label>
                                 </div>

@@ -4,63 +4,88 @@
     ViewData["Title"] = "Нова співбесіда";
 }
 
-<h1 class="h2 mb-3">Нова співбесіда</h1>
-
-<form asp-action="Create" class="row g-3">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="col-12">
-        <div class="alert alert-info mb-0">
-            Після збереження система створить email-сповіщення. Якщо SMTP не налаштований, повідомлення збережеться у папці EmailOutbox.
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow">Інтерв'ю та зустрічі</span>
+            <h1 class="h2 fw-bold mb-1">Запланувати співбесіду</h1>
+            <p class="text-muted mb-0">Призначення дати, формату, інтерв'юера та генерація запрошення.</p>
         </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
     </div>
-    <div class="col-md-6">
-        <label asp-for="ApplicationId" class="form-label"></label>
-        <select asp-for="ApplicationId" class="form-select" asp-items="ViewBag.ApplicationId"></select>
-        <div class="form-text">Список формується із заявок. Якщо потрібної вакансії немає, створіть вакансію і заявку для кандидата.</div>
-        <span asp-validation-for="ApplicationId" class="text-danger"></span>
+
+    <div class="form-card">
+        <form asp-action="Create" class="row g-3">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small col-12 mb-2"></div>
+            
+            <div class="col-12">
+                <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-1">
+                    <span class="badge-soft badge-soft-cyan">Email</span>
+                    <span>Після збереження система сформує email-сповіщення (outbox / SMTP) для кандидата та інтерв'юера.</span>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="ApplicationId" class="form-label fw-semibold">Заявка / Кандидат</label>
+                <select asp-for="ApplicationId" class="form-select" asp-items="ViewBag.ApplicationId"></select>
+                <span asp-validation-for="ApplicationId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="RecruiterId" class="form-label fw-semibold">Відповідальний інтерв'юер / рекрутер</label>
+                <select asp-for="RecruiterId" class="form-select" asp-items="ViewBag.RecruiterId">
+                    <option value="">Не призначено</option>
+                </select>
+                <span asp-validation-for="RecruiterId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="InterviewDate" class="form-label fw-semibold">Дата та час початку</label>
+                <input asp-for="InterviewDate" class="form-control font-monospace" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" step="60" />
+                <span asp-validation-for="InterviewDate" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="InterviewType" class="form-label fw-semibold">Тип співбесіди</label>
+                <select asp-for="InterviewType" class="form-select">
+                    @foreach (var type in HrOptions.InterviewTypes)
+                    {
+                        <option value="@type">@HrOptions.InterviewTypeLabel(type)</option>
+                    }
+                </select>
+                <span asp-validation-for="InterviewType" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Result" class="form-label fw-semibold">Результат / Статус</label>
+                <select asp-for="Result" class="form-select">
+                    @foreach (var result in HrOptions.InterviewResults)
+                    {
+                        <option value="@result">@HrOptions.InterviewResultLabel(result)</option>
+                    }
+                </select>
+                <span asp-validation-for="Result" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Notes" class="form-label fw-semibold">Примітки / Питання для інтерв'ю</label>
+                <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Посилання на Zoom/Google Meet, теми для обговорення або очікування від зустрічі..."></textarea>
+                <span asp-validation-for="Notes" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+                <button type="submit" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                    Запланувати зустріч
+                </button>
+            </div>
+        </form>
     </div>
-    <div class="col-md-6">
-        <label asp-for="RecruiterId" class="form-label"></label>
-        <select asp-for="RecruiterId" class="form-select" asp-items="ViewBag.RecruiterId">
-            <option value="">Не призначено</option>
-        </select>
-        <span asp-validation-for="RecruiterId" class="text-danger"></span>
-    </div>
-    <div class="col-md-6">
-        <label asp-for="InterviewDate" class="form-label"></label>
-        <input asp-for="InterviewDate" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" step="60" />
-        <span asp-validation-for="InterviewDate" class="text-danger"></span>
-    </div>
-    <div class="col-md-6">
-        <label asp-for="InterviewType" class="form-label"></label>
-        <select asp-for="InterviewType" class="form-select">
-            @foreach (var type in HrOptions.InterviewTypes)
-            {
-                <option value="@type">@type</option>
-            }
-        </select>
-        <span asp-validation-for="InterviewType" class="text-danger"></span>
-    </div>
-    <div class="col-md-6">
-        <label asp-for="Result" class="form-label"></label>
-        <select asp-for="Result" class="form-select">
-            @foreach (var result in HrOptions.InterviewResults)
-            {
-                <option value="@result">@result</option>
-            }
-        </select>
-        <span asp-validation-for="Result" class="text-danger"></span>
-    </div>
-    <div class="col-12">
-        <label asp-for="Notes" class="form-label"></label>
-        <textarea asp-for="Notes" class="form-control" rows="4"></textarea>
-        <span asp-validation-for="Notes" class="text-danger"></span>
-    </div>
-    <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-success">Зберегти</button>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-    </div>
-</form>
+</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

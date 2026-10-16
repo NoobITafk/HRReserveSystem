@@ -1,51 +1,74 @@
 @model RecruiterFormViewModel
 
 @{
-    ViewData["Title"] = "Редагувати рекрутера";
+    ViewData["Title"] = "Редагувати користувача";
 }
 
-<h1 class="h2 mb-3">Редагувати рекрутера</h1>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow">Адміністрування команди</span>
+            <h1 class="h2 fw-bold mb-1">Редагувати профіль</h1>
+            <p class="text-muted mb-0">Зміна системної ролі, контактів або скидання пароля доступу.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
+    </div>
 
-<form asp-action="Edit" class="row g-3">
-    <input type="hidden" asp-for="Id" />
-    <input type="hidden" asp-for="CreatedAt" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="col-md-6">
-        <label asp-for="FullName" class="form-label"></label>
-        <input asp-for="FullName" class="form-control" />
-        <span asp-validation-for="FullName" class="text-danger"></span>
+    <div class="form-card">
+        <form asp-action="Edit" class="row g-3">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="CreatedAt" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small col-12 mb-2"></div>
+
+            <div class="col-md-6">
+                <label asp-for="FullName" class="form-label fw-semibold">Повне ім'я (ПІБ)</label>
+                <input asp-for="FullName" class="form-control" />
+                <span asp-validation-for="FullName" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Email" class="form-label fw-semibold">Корпоративний Email</label>
+                <input asp-for="Email" class="form-control" type="email" />
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Login" class="form-label fw-semibold">Логін</label>
+                <input asp-for="Login" class="form-control font-monospace" />
+                <span asp-validation-for="Login" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Password" class="form-label fw-semibold">Новий пароль</label>
+                <input asp-for="Password" class="form-control" type="password" autocomplete="new-password" placeholder="Залиште порожнім, якщо без змін" />
+                <div class="form-text">Залиште порожнім, щоб зберегти поточний пароль.</div>
+                <span asp-validation-for="Password" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Role" class="form-label fw-semibold">Роль у системі</label>
+                <select asp-for="Role" class="form-select">
+                    @foreach (var role in HrOptions.RecruiterRoles)
+                    {
+                        <option value="@role">@role</option>
+                    }
+                </select>
+                <span asp-validation-for="Role" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+                <button type="submit" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Зберегти зміни
+                </button>
+            </div>
+        </form>
     </div>
-    <div class="col-md-6">
-        <label asp-for="Email" class="form-label"></label>
-        <input asp-for="Email" class="form-control" />
-        <span asp-validation-for="Email" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="Login" class="form-label"></label>
-        <input asp-for="Login" class="form-control" />
-        <span asp-validation-for="Login" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="Password" class="form-label">Новий пароль</label>
-        <input asp-for="Password" class="form-control" autocomplete="new-password" />
-        <div class="form-text">Залиште поле порожнім, щоб не змінювати пароль.</div>
-        <span asp-validation-for="Password" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="Role" class="form-label"></label>
-        <select asp-for="Role" class="form-select">
-            @foreach (var role in HrOptions.RecruiterRoles)
-            {
-                <option value="@role">@role</option>
-            }
-        </select>
-        <span asp-validation-for="Role" class="text-danger"></span>
-    </div>
-    <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-success">Зберегти</button>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-    </div>
-</form>
+</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

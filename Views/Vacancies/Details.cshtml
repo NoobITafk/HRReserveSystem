@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Деталі вакансії";
     var isArchived = Model.IsArchived;
+    var canManage = User.IsInRole("Admin") || User.IsInRole("Recruiter");
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -21,16 +22,26 @@
     <div class="d-flex flex-wrap gap-2">
         @if (isArchived)
         {
-            <form asp-action="Restore" asp-route-id="@Model.Id" method="post">
-                <button class="btn btn-outline-success" type="submit">Відновити</button>
-            </form>
-            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showArchived="true">← Назад до архіву</a>
+            @if (canManage)
+            {
+                <form asp-action="Restore" asp-route-id="@Model.Id" method="post">
+                    <button class="btn btn-outline-success" type="submit">Відновити</button>
+                </form>
+            }
+            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showArchived="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>Назад до архіву</a>
         }
         else
         {
-            <a class="btn btn-primary" asp-controller="Applications" asp-action="Create">Подати кандидата</a>
-            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
-            <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
+            @if (canManage)
+            {
+                <a class="btn btn-primary" asp-controller="Applications" asp-action="Create">Подати кандидата</a>
+                <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+            }
+            else
+            {
+                <a class="btn btn-primary" asp-controller="Account" asp-action="Profile">Мій профіль та резюме</a>
+            }
+            <a class="btn btn-outline-secondary" asp-action="Index"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>До списку вакансій</a>
         }
     </div>
 </div>
@@ -87,6 +98,8 @@
     </div>
 </div>
 
+@if (canManage)
+{
 <div class="card">
     <div class="card-header">
         <h2 class="h5 mb-0">Кандидати на цю вакансію</h2>
@@ -121,3 +134,4 @@
         <div class="empty-state">На цю вакансію ще не подано жодного кандидата.</div>
     }
 </div>
+}

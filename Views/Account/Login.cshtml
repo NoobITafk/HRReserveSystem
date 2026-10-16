@@ -2,7 +2,6 @@
 
 @{
     ViewData["Title"] = "Вхід у систему";
-    var demoUsers = ViewData["DemoUsers"] as IReadOnlyList<DemoUserViewModel> ?? [];
 }
 
 <div class="auth-wrapper py-3 py-lg-5">
@@ -86,7 +85,7 @@
 
                         <div class="mb-4">
                             <h2 class="h3 fw-bold mb-1">З поверненням</h2>
-                            <p class="text-muted small mb-0">Увійдіть за допомогою облікового запису або оберіть демо-роль нижче.</p>
+                            <p class="text-muted small mb-0">Увійдіть до системи за допомогою свого логіну або корпоративної пошти.</p>
                         </div>
 
                         <form asp-action="Login" method="post" class="row g-3" id="loginForm">
@@ -99,7 +98,7 @@
                                     <span class="input-icon" aria-hidden="true">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                                     </span>
-                                    <input asp-for="Login" class="form-control form-control-lg" autocomplete="username" placeholder="Наприклад: recruiter або email@company.ua" />
+                                    <input asp-for="Login" class="form-control form-control-lg" autocomplete="username" placeholder="Введіть логін або email" />
                                 </div>
                                 <span asp-validation-for="Login" class="text-danger small"></span>
                             </div>
@@ -135,45 +134,14 @@
                     </div>
 
                     <div class="mt-4 pt-4 border-top">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="fw-semibold small text-uppercase tracking-wider text-muted">Миттєвий демо-вхід (1 клік)</span>
-                            <span class="badge-soft badge-soft-emerald">Готові акаунти</span>
-                        </div>
-                        <div class="d-grid gap-2">
-                            @foreach (var user in demoUsers)
-                            {
-                                var roleTitle = user.Role switch
-                                {
-                                    "Admin" => "Адміністратор системи",
-                                    "Recruiter" => "HR Рекрутер",
-                                    "Interviewer" => "Технічний Інтерв'юер",
-                                    _ => user.Role
-                                };
-                                var roleSub = user.Role switch
-                                {
-                                    "Admin" => "Повний доступ, аналітика, команда",
-                                    "Recruiter" => "Кандидати, вакансії, заявки, співбесіди",
-                                    "Interviewer" => "Оцінювання співбесід та Soft Skills",
-                                    _ => ""
-                                };
-                                <button class="demo-role-btn demo-autologin"
-                                        type="button"
-                                        data-demo-login="@user.Login"
-                                        data-demo-password="@user.Password"
-                                        data-autologin="true"
-                                        title="Миттєво увійти як @roleTitle">
-                                    <div class="text-start">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <span class="fw-semibold">@roleTitle</span>
-                                            <span class="@HrOptions.RecruiterRoleBadge(user.Role)">@HrOptions.RecruiterRoleLabel(user.Role)</span>
-                                        </div>
-                                        <div class="text-muted small mt-1">
-                                            <span>@roleSub</span> · <code class="font-monospace">@user.Login</code>
-                                        </div>
-                                    </div>
-                                    <span class="demo-enter-chip">Увійти →</span>
-                                </button>
-                            }
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="auth-feature-icon icon-emerald" style="width: 40px; height: 40px; min-width: 40px;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+                            </div>
+                            <div class="small">
+                                <div class="fw-semibold text-body">Захищений корпоративний простір</div>
+                                <div class="text-muted">Дані захищені протоколом HTTPS та двоконтурною перевіркою доступу.</div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -4,7 +4,7 @@ namespace HRReserveSystem.ViewModels;
 
 public class RegisterViewModel : IValidatableObject
 {
-    public static readonly string[] AllowedRegistrationRoles = ["Recruiter", "Interviewer"];
+    public static readonly string[] AllowedRegistrationRoles = ["Candidate", "Recruiter", "Interviewer"];
 
     [Required(ErrorMessage = "Вкажіть ваше повне ім'я (ПІБ).")]
     [StringLength(120, MinimumLength = 2, ErrorMessage = "ПІБ має містити від 2 до 120 символів.")]

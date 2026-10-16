@@ -20,7 +20,7 @@
         <a class="btn btn-outline-primary" asp-action="ExportIcs">Експорт .ics</a>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {
-            <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Запланувати зустріч</a>
+            <a class="btn btn-primary" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Запланувати зустріч</a>
         }
     </div>
 </div>
@@ -73,7 +73,7 @@ else
         <p class="text-muted mb-3">Календар заповнюється автоматично після призначення співбесід кандидатам.</p>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {
-            <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Запланувати співбесіду</a>
+            <a class="btn btn-primary" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Запланувати співбесіду</a>
         }
     </div>
 }

@@ -100,7 +100,7 @@ public class IdentityRecruiterSyncService(
     {
         var currentClaims = await userManager.GetClaimsAsync(user);
         var claimsToRemove = currentClaims
-            .Where(claim => claim.Type is "DisplayName" or RecruiterIdClaim)
+            .Where(claim => claim.Type is "DisplayName" or "AvatarUrl" or RecruiterIdClaim)
             .ToList();
 
         if (claimsToRemove.Count > 0)
@@ -108,11 +108,18 @@ public class IdentityRecruiterSyncService(
             AddErrors(await userManager.RemoveClaimsAsync(user, claimsToRemove), errors);
         }
 
-        AddErrors(await userManager.AddClaimsAsync(user,
-        [
-            new Claim("DisplayName", recruiter.FullName),
-            new Claim(RecruiterIdClaim, recruiter.Id.ToString())
-        ]), errors);
+        var claimsToAdd = new List<Claim>
+        {
+            new("DisplayName", recruiter.FullName),
+            new(RecruiterIdClaim, recruiter.Id.ToString())
+        };
+
+        if (!string.IsNullOrWhiteSpace(recruiter.AvatarUrl))
+        {
+            claimsToAdd.Add(new("AvatarUrl", recruiter.AvatarUrl));
+        }
+
+        AddErrors(await userManager.AddClaimsAsync(user, claimsToAdd), errors);
     }
 
     private static void AddErrors(IdentityResult result, List<string> errors)

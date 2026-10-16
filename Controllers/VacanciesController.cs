@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
-[Authorize(Roles = "Admin,Recruiter")]
+[Authorize(Roles = "Admin,Recruiter,Candidate")]
 public class VacanciesController(ApplicationDbContext context) : Controller
 {
     public async Task<IActionResult> Index(string? search, string? status, bool showArchived = false)
@@ -50,6 +50,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
         return vacancy is null ? NotFound() : View(vacancy);
     }
 
+    [Authorize(Roles = "Admin,Recruiter")]
     public IActionResult Create()
     {
         return View(new Vacancy());
@@ -71,6 +72,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [Authorize(Roles = "Admin,Recruiter")]
     public async Task<IActionResult> Edit(int? id)
     {
         if (id is null)
@@ -114,6 +116,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [Authorize(Roles = "Admin,Recruiter")]
     public async Task<IActionResult> Delete(int? id)
     {
         if (id is null)
@@ -145,6 +148,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,Recruiter")]
     public async Task<IActionResult> Restore(int id)
     {
         var vacancy = await context.Vacancies.FirstOrDefaultAsync(item => item.Id == id && item.IsArchived);

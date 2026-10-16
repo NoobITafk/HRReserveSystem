@@ -7,19 +7,19 @@
     var vacancyTotal = Math.Max(1, Model.VacancyStatusCounts.Values.Sum());
     var applicationColors = new Dictionary<string, string>
     {
-        ["New"] = "#64748b",
-        ["Screening"] = "#2563eb",
+        ["New"] = "#94a3b8",
+        ["Screening"] = "#0d9488",
         ["Interview"] = "#f59e0b",
-        ["TestTask"] = "#06b6d4",
-        ["Offer"] = "#10b981",
-        ["Hired"] = "#059669",
-        ["Rejected"] = "#ef4444"
+        ["TestTask"] = "#6366f1",
+        ["Offer"] = "#34d399",
+        ["Hired"] = "#047857",
+        ["Rejected"] = "#f43f5e"
     };
     var vacancyColors = new Dictionary<string, string>
     {
         ["Open"] = "#10b981",
         ["Paused"] = "#f59e0b",
-        ["Closed"] = "#64748b"
+        ["Closed"] = "#94a3b8"
     };
     var canOpenHiringPages = User.IsInRole("Admin") || User.IsInRole("Recruiter");
     var canOpenInterviewPages = User.IsInRole("Admin") || User.IsInRole("Interviewer");
@@ -50,16 +50,16 @@
     @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
     {
         <div class="dashboard-actions">
-            <a class="btn btn-primary" asp-controller="Candidates" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
-            <a class="btn btn-outline-primary" asp-controller="Vacancies" asp-action="Create"><span aria-hidden="true">+</span> Нова вакансія</a>
-            <a class="btn btn-outline-secondary" asp-controller="Applications" asp-action="Create"><span aria-hidden="true">+</span> Створити заявку</a>
+            <a class="btn btn-primary" asp-controller="Candidates" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Додати кандидата</a>
+            <a class="btn btn-outline-primary" asp-controller="Vacancies" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Нова вакансія</a>
+            <a class="btn btn-outline-secondary" asp-controller="Applications" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Створити заявку</a>
         </div>
     }
     else
     {
         <div class="dashboard-actions">
-            <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create"><span aria-hidden="true">+</span> Новий відгук</a>
-            <a class="btn btn-outline-secondary" asp-controller="SoftSkillAssessments" asp-action="Create"><span aria-hidden="true">+</span> Оцінка Soft Skills</a>
+            <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Новий відгук</a>
+            <a class="btn btn-outline-secondary" asp-controller="SoftSkillAssessments" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Оцінка Soft Skills</a>
         </div>
     }
 </div>

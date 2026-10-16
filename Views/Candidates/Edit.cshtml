@@ -4,63 +4,117 @@
     ViewData["Title"] = "Редагувати кандидата";
 }
 
-<h1 class="h2 mb-3">Редагувати кандидата</h1>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow">Кадровий резерв</span>
+            <h1 class="h2 fw-bold mb-1">Редагувати профіль</h1>
+            <p class="text-muted mb-0">Оновлення персональних даних, досвіду та резюме кандидата @Model.FullName.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.Id">Досьє кандидата</a>
+            <a class="btn btn-outline-secondary" asp-action="Index">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                До списку
+            </a>
+        </div>
+    </div>
 
-<form asp-action="Edit" class="row g-3" enctype="multipart/form-data">
-    <input type="hidden" asp-for="Id" />
-    <input type="hidden" asp-for="CreatedAt" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="col-md-6">
-        <label asp-for="FullName" class="form-label"></label>
-        <input asp-for="FullName" class="form-control" />
-        <span asp-validation-for="FullName" class="text-danger"></span>
-    </div>
-    <div class="col-md-6">
-        <label asp-for="Email" class="form-label"></label>
-        <input asp-for="Email" class="form-control" />
-        <span asp-validation-for="Email" class="text-danger"></span>
-    </div>
-    <div class="col-md-6">
-        <label asp-for="Phone" class="form-label"></label>
-        <input asp-for="Phone" class="form-control" />
-        <span asp-validation-for="Phone" class="text-danger"></span>
-    </div>
-    <div class="col-md-6">
-        <label asp-for="ExperienceYears" class="form-label"></label>
-        <input asp-for="ExperienceYears" class="form-control" />
-        <span asp-validation-for="ExperienceYears" class="text-danger"></span>
-    </div>
-    <div class="col-12">
-        <label asp-for="Skills" class="form-label"></label>
-        <textarea asp-for="Skills" class="form-control" rows="4"></textarea>
-        <span asp-validation-for="Skills" class="text-danger"></span>
-    </div>
-    <div class="col-12">
-        <label asp-for="ResumeFilePath" class="form-label"></label>
-        @if (!string.IsNullOrWhiteSpace(Model.ResumeFilePath))
-        {
-            <div class="resume-current-file mb-2">
-                <a class="btn btn-sm btn-outline-primary" asp-action="DownloadResume" asp-route-id="@Model.Id" target="_blank" rel="noopener">Відкрити поточне резюме</a>
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" id="removeResume" name="removeResume" value="true" />
-                    <label class="form-check-label" for="removeResume">Видалити поточний файл резюме</label>
-                </div>
+    <div class="form-card">
+        <form asp-action="Edit" class="row g-3" enctype="multipart/form-data">
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="CreatedAt" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small col-12 mb-2"></div>
+            
+            <div class="col-md-6">
+                <label asp-for="FullName" class="form-label fw-semibold">Прізвище, ім'я та по батькові</label>
+                <input asp-for="FullName" class="form-control" />
+                <span asp-validation-for="FullName" class="text-danger small"></span>
             </div>
-        }
-        <input class="form-control" type="file" id="resumeFile" name="resumeFile" accept=".pdf,.doc,.docx" />
-        <div class="form-text">Новий PDF, DOC або DOCX файл до 5 MB замінить поточне резюме.</div>
-        <span asp-validation-for="ResumeFilePath" class="text-danger"></span>
+
+            <div class="col-md-6">
+                <label asp-for="Email" class="form-label fw-semibold">Електронна пошта</label>
+                <input asp-for="Email" class="form-control" type="email" />
+                <span asp-validation-for="Email" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Phone" class="form-label fw-semibold">Контактний телефон</label>
+                <input asp-for="Phone" class="form-control font-monospace" />
+                <span asp-validation-for="Phone" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="ExperienceYears" class="form-label fw-semibold">Досвід роботи (років)</label>
+                <input asp-for="ExperienceYears" class="form-control font-monospace" type="number" min="0" />
+                <span asp-validation-for="ExperienceYears" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Skills" class="form-label fw-semibold">Ключові навички та стек технологій</label>
+                <textarea asp-for="Skills" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Skills" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="AvatarUrl" class="form-label fw-semibold">Фотографія кандидата</label>
+                @if (!string.IsNullOrWhiteSpace(Model.AvatarUrl))
+                {
+                    <div class="mb-3 p-3 rounded-3 surface-subtle border d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <img src="@Model.AvatarUrl" class="profile-avatar profile-avatar-md profile-avatar-img shadow-sm" alt="@Model.FullName" />
+                            <span class="small font-monospace text-muted">@System.IO.Path.GetFileName(Model.AvatarUrl)</span>
+                        </div>
+                        <div class="form-check m-0">
+                            <input class="form-check-input" type="checkbox" id="removeAvatar" name="removeAvatar" value="true" />
+                            <label class="form-check-label small text-danger fw-semibold" for="removeAvatar">Видалити фото</label>
+                        </div>
+                    </div>
+                }
+                <input class="form-control" type="file" id="avatarFile" name="avatarFile" accept=".jpg,.jpeg,.png,.webp" />
+                <div class="form-text">Підтримуються формати JPG, PNG, WEBP розміром до 5 MB.</div>
+                <span asp-validation-for="AvatarUrl" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="ResumeFilePath" class="form-label fw-semibold">Файл резюме (CV)</label>
+                @if (!string.IsNullOrWhiteSpace(Model.ResumeFilePath))
+                {
+                    <div class="resume-current-file mb-3 p-3 rounded-3 surface-subtle border d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge-soft badge-soft-emerald">Прикріплено</span>
+                            <span class="small font-monospace text-muted">@System.IO.Path.GetFileName(Model.ResumeFilePath)</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <a class="btn btn-sm btn-outline-primary" asp-action="DownloadResume" asp-route-id="@Model.Id" target="_blank" rel="noopener">Завантажити файл</a>
+                            <div class="form-check m-0">
+                                <input class="form-check-input" type="checkbox" id="removeResume" name="removeResume" value="true" />
+                                <label class="form-check-label small text-danger fw-semibold" for="removeResume">Видалити поточний файл</label>
+                            </div>
+                        </div>
+                    </div>
+                }
+                <input class="form-control" type="file" id="resumeFile" name="resumeFile" accept=".pdf,.doc,.docx" />
+                <div class="form-text">Завантаження нового файлу (PDF, DOC, DOCX до 5 MB) замінить поточне резюме.</div>
+                <span asp-validation-for="ResumeFilePath" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="ResumeSummary" class="form-label fw-semibold">Коротке резюме / примітки рекрутера</label>
+                <textarea asp-for="ResumeSummary" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="ResumeSummary" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+                <button type="submit" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Зберегти зміни
+                </button>
+            </div>
+        </form>
     </div>
-    <div class="col-12">
-        <label asp-for="ResumeSummary" class="form-label"></label>
-        <textarea asp-for="ResumeSummary" class="form-control" rows="5"></textarea>
-        <span asp-validation-for="ResumeSummary" class="text-danger"></span>
-    </div>
-    <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-success">Зберегти</button>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-    </div>
-</form>
+</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

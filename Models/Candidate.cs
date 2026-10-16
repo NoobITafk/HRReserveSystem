@@ -31,6 +31,10 @@ public class Candidate
     [Display(Name = "Файл резюме")]
     public string? ResumeFilePath { get; set; }
 
+    [StringLength(500)]
+    [Display(Name = "Фото / Аватар")]
+    public string? AvatarUrl { get; set; }
+
     [StringLength(4000)]
     [Display(Name = "Коротке резюме")]
     public string? ResumeSummary { get; set; }

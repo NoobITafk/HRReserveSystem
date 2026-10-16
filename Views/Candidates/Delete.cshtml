@@ -4,20 +4,55 @@
     ViewData["Title"] = "Приховати кандидата";
 }
 
-<h1 class="h2 mb-3">Приховати кандидата</h1>
-<div class="alert alert-warning">Кандидат <strong>@Model.FullName</strong> буде прихований зі списку, але історичні HR-дані залишаться в системі.</div>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow text-warning">Керування статусом</span>
+            <h1 class="h2 fw-bold mb-1">Приховати кандидата</h1>
+            <p class="text-muted mb-0">Підтвердження переведення спеціаліста @Model.FullName в архів прихованих.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
+    </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Електронна пошта</dt>
-    <dd class="col-sm-9">@Model.Email</dd>
-    <dt class="col-sm-3">Файл резюме</dt>
-    <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.ResumeFilePath) ? "Не додано" : Model.ResumeFilePath)</dd>
-    <dt class="col-sm-3">Навички</dt>
-    <dd class="col-sm-9">@Model.Skills</dd>
-</dl>
+    <div class="form-card">
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <span class="badge-soft badge-soft-amber">Увага</span>
+            <div>Кандидат <strong>@Model.FullName</strong> буде прихований з активного кадрового резерву. Історичні співбесіди та заявки збережуться. Ви зможете відновити профіль у будь-який момент.</div>
+        </div>
 
-<form asp-action="Delete">
-    <input type="hidden" asp-for="Id" />
-    <button type="submit" class="btn btn-danger">Приховати</button>
-    <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-</form>
+        <div class="detail-list mb-4">
+            <div class="detail-row">
+                <dt>ПІБ кандидата</dt>
+                <dd class="fw-bold">@Model.FullName</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Електронна пошта</dt>
+                <dd>@Model.Email</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Контактний телефон</dt>
+                <dd class="font-monospace">@(string.IsNullOrWhiteSpace(Model.Phone) ? "—" : Model.Phone)</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Досвід роботи</dt>
+                <dd class="font-monospace">@Model.ExperienceYears р.</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Ключові навички</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Model.Skills) ? "—" : Model.Skills)</dd>
+            </div>
+        </div>
+
+        <form asp-action="Delete" class="d-flex flex-wrap gap-2 justify-content-between align-items-center pt-3 border-top">
+            <input type="hidden" asp-for="Id" />
+            <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+            <button type="submit" class="btn btn-outline-danger">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                Підтвердити та приховати
+            </button>
+        </form>
+    </div>
+</div>

@@ -1,5 +1,6 @@
 using HRReserveSystem.Data;
 using HRReserveSystem.Models;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -10,10 +11,15 @@ using System.Text;
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter")]
-public class CandidatesController(ApplicationDbContext context, IWebHostEnvironment environment) : Controller
+public class CandidatesController(
+    ApplicationDbContext context,
+    IWebHostEnvironment environment,
+    ResumeIntelligenceService resumeIntelligence) : Controller
 {
     private const long MaxResumeFileSize = 5 * 1024 * 1024;
+    private const long MaxAvatarFileSize = 5 * 1024 * 1024;
     private static readonly string[] AllowedResumeExtensions = [".pdf", ".doc", ".docx"];
+    private static readonly string[] AllowedAvatarExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 
     public async Task<IActionResult> Index(string? search, int? minExperience, bool showHidden = false)
     {
@@ -28,14 +34,14 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
             .ToListAsync());
     }
 
-    public async Task<IActionResult> ExportCsv(string? search, int? minExperience)
+    public async Task<IActionResult> ExportCsv(string? search, int? minExperience, bool showHidden = false)
     {
-        var candidates = await ApplyFilters(context.Candidates.AsNoTracking().Where(candidate => !candidate.IsDeleted), search, minExperience)
+        var candidates = await ApplyFilters(context.Candidates.AsNoTracking().Where(candidate => candidate.IsDeleted == showHidden), search, minExperience)
             .OrderBy(candidate => candidate.FullName)
             .ToListAsync();
 
         var csv = new StringBuilder();
-        AppendCsvRow(csv, "Id", "FullName", "Email", "Phone", "Skills", "ExperienceYears", "ResumeFilePath", "ResumeSummary", "CreatedAt");
+        AppendCsvRow(csv, "Id", "FullName", "Email", "Phone", "ExperienceYears", "Skills", "ResumeFilePath", "ResumeSummary", "CreatedAt");
 
         foreach (var candidate in candidates)
         {
@@ -45,8 +51,8 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
                 candidate.FullName,
                 candidate.Email,
                 candidate.Phone,
-                candidate.Skills,
                 candidate.ExperienceYears,
+                candidate.Skills,
                 candidate.ResumeFilePath,
                 candidate.ResumeSummary,
                 candidate.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
@@ -76,7 +82,31 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
             .Include(item => item.SoftSkillAssessments)
             .FirstOrDefaultAsync(item => item.Id == id);
 
-        return candidate is null ? NotFound() : View(candidate);
+        if (candidate is null)
+        {
+            return NotFound();
+        }
+
+        ViewBag.Interviews = await context.Interviews
+            .AsNoTracking()
+            .Include(i => i.Application)
+                .ThenInclude(a => a!.Vacancy)
+            .Include(i => i.Recruiter)
+            .Include(i => i.Feedbacks)
+            .Where(i => i.Application != null && i.Application.CandidateId == candidate.Id)
+            .OrderByDescending(i => i.InterviewDate)
+            .ToListAsync();
+
+        if (!string.IsNullOrWhiteSpace(candidate.ResumeFilePath))
+        {
+            var fullPath = Path.Combine(environment.WebRootPath, candidate.ResumeFilePath.TrimStart('/', '\\'));
+            if (System.IO.File.Exists(fullPath))
+            {
+                ViewBag.ParsedResume = resumeIntelligence.ParseResumeFile(fullPath);
+            }
+        }
+
+        return View(candidate);
     }
 
     public async Task<IActionResult> DownloadResume(int id)
@@ -112,9 +142,13 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("FullName,Email,Phone,Skills,ResumeSummary,ExperienceYears")] Candidate candidate, IFormFile? resumeFile)
+    public async Task<IActionResult> Create(
+        [Bind("FullName,Email,Phone,Skills,ResumeSummary,ExperienceYears")] Candidate candidate,
+        IFormFile? resumeFile,
+        IFormFile? avatarFile)
     {
         ValidateResumeFile(resumeFile);
+        ValidateAvatarFile(avatarFile);
 
         if (!ModelState.IsValid)
         {
@@ -131,6 +165,18 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
         if (!string.IsNullOrWhiteSpace(uploadedResumePath))
         {
             candidate.ResumeFilePath = uploadedResumePath;
+            var fullPath = Path.Combine(environment.WebRootPath, uploadedResumePath.TrimStart('/', '\\'));
+            var parsed = resumeIntelligence.ParseResumeFile(fullPath);
+            if (parsed.Success && string.IsNullOrWhiteSpace(candidate.ResumeSummary) && !string.IsNullOrWhiteSpace(parsed.Summary))
+            {
+                candidate.ResumeSummary = parsed.Summary;
+            }
+        }
+
+        var uploadedAvatarPath = await SaveAvatarFileAsync(avatarFile);
+        if (!string.IsNullOrWhiteSpace(uploadedAvatarPath))
+        {
+            candidate.AvatarUrl = uploadedAvatarPath;
         }
 
         candidate.CreatedAt = DateTime.UtcNow;
@@ -170,9 +216,17 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
 
         DeleteStoredResume(oldResumePath);
         candidate.ResumeFilePath = uploadedResumePath;
+
+        var fullPath = Path.Combine(environment.WebRootPath, uploadedResumePath.TrimStart('/', '\\'));
+        var parsed = resumeIntelligence.ParseResumeFile(fullPath);
+        if (parsed.Success && !string.IsNullOrWhiteSpace(parsed.Summary))
+        {
+            candidate.ResumeSummary = parsed.Summary;
+        }
+
         await context.SaveChangesAsync();
 
-        TempData["ResumeMessage"] = "Резюме кандидата оновлено.";
+        TempData["ResumeMessage"] = "Резюме кандидата оновлено та проаналізовано.";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -189,7 +243,13 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("Id,FullName,Email,Phone,Skills,ResumeSummary,ExperienceYears")] Candidate candidate, IFormFile? resumeFile, bool removeResume = false)
+    public async Task<IActionResult> Edit(
+        int id,
+        [Bind("Id,FullName,Email,Phone,Skills,ResumeSummary,ExperienceYears")] Candidate candidate,
+        IFormFile? resumeFile,
+        IFormFile? avatarFile,
+        bool removeResume = false,
+        bool removeAvatar = false)
     {
         if (id != candidate.Id)
         {
@@ -203,10 +263,12 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
         }
 
         ValidateResumeFile(resumeFile);
+        ValidateAvatarFile(avatarFile);
 
         if (!ModelState.IsValid)
         {
             candidate.ResumeFilePath = existingCandidate.ResumeFilePath;
+            candidate.AvatarUrl = existingCandidate.AvatarUrl;
             candidate.CreatedAt = existingCandidate.CreatedAt;
             return View(candidate);
         }
@@ -215,6 +277,7 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
         {
             ModelState.AddModelError(nameof(Candidate.Email), "Кандидат із такою електронною поштою вже існує.");
             candidate.ResumeFilePath = existingCandidate.ResumeFilePath;
+            candidate.AvatarUrl = existingCandidate.AvatarUrl;
             candidate.CreatedAt = existingCandidate.CreatedAt;
             return View(candidate);
         }
@@ -222,6 +285,7 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
         try
         {
             var oldResumePath = existingCandidate.ResumeFilePath;
+            var oldAvatarPath = existingCandidate.AvatarUrl;
 
             existingCandidate.FullName = candidate.FullName;
             existingCandidate.Email = candidate.Email;
@@ -241,6 +305,25 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
             {
                 DeleteStoredResume(oldResumePath);
                 existingCandidate.ResumeFilePath = uploadedResumePath;
+                var fullPath = Path.Combine(environment.WebRootPath, uploadedResumePath.TrimStart('/', '\\'));
+                var parsed = resumeIntelligence.ParseResumeFile(fullPath);
+                if (parsed.Success && !string.IsNullOrWhiteSpace(parsed.Summary))
+                {
+                    existingCandidate.ResumeSummary = parsed.Summary;
+                }
+            }
+
+            if (removeAvatar)
+            {
+                DeleteStoredAvatar(oldAvatarPath);
+                existingCandidate.AvatarUrl = null;
+            }
+
+            var uploadedAvatarPath = await SaveAvatarFileAsync(avatarFile);
+            if (!string.IsNullOrWhiteSpace(uploadedAvatarPath))
+            {
+                DeleteStoredAvatar(oldAvatarPath);
+                existingCandidate.AvatarUrl = uploadedAvatarPath;
             }
 
             await context.SaveChangesAsync();
@@ -371,6 +454,25 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
         }
     }
 
+    private void ValidateAvatarFile(IFormFile? avatarFile)
+    {
+        if (avatarFile is null || avatarFile.Length == 0)
+        {
+            return;
+        }
+
+        var extension = Path.GetExtension(avatarFile.FileName).ToLowerInvariant();
+        if (!AllowedAvatarExtensions.Contains(extension))
+        {
+            ModelState.AddModelError(nameof(Candidate.AvatarUrl), "Дозволені формати фото: JPG, JPEG, PNG, WEBP.");
+        }
+
+        if (avatarFile.Length > MaxAvatarFileSize)
+        {
+            ModelState.AddModelError(nameof(Candidate.AvatarUrl), "Файл фото має бути не більшим за 5 MB.");
+        }
+    }
+
     private async Task<string?> SaveResumeFileAsync(IFormFile? resumeFile)
     {
         if (resumeFile is null || resumeFile.Length == 0)
@@ -389,6 +491,26 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
         await resumeFile.CopyToAsync(stream);
 
         return $"/uploads/resumes/{fileName}";
+    }
+
+    private async Task<string?> SaveAvatarFileAsync(IFormFile? avatarFile)
+    {
+        if (avatarFile is null || avatarFile.Length == 0)
+        {
+            return null;
+        }
+
+        var extension = Path.GetExtension(avatarFile.FileName).ToLowerInvariant();
+        var uploadsPath = Path.Combine(environment.WebRootPath, "uploads", "avatars");
+        Directory.CreateDirectory(uploadsPath);
+
+        var fileName = $"candidate_{Guid.NewGuid():N}{extension}";
+        var physicalPath = Path.Combine(uploadsPath, fileName);
+
+        await using var stream = System.IO.File.Create(physicalPath);
+        await avatarFile.CopyToAsync(stream);
+
+        return $"/uploads/avatars/{fileName}";
     }
 
     private static string GetResumeContentType(string fileName)
@@ -411,6 +533,21 @@ public class CandidatesController(ApplicationDbContext context, IWebHostEnvironm
 
         var fileName = Path.GetFileName(resumePath);
         var physicalPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
+        if (System.IO.File.Exists(physicalPath))
+        {
+            System.IO.File.Delete(physicalPath);
+        }
+    }
+
+    private void DeleteStoredAvatar(string? avatarPath)
+    {
+        if (string.IsNullOrWhiteSpace(avatarPath) || !avatarPath.StartsWith("/uploads/avatars/", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var fileName = Path.GetFileName(avatarPath);
+        var physicalPath = Path.Combine(environment.WebRootPath, "uploads", "avatars", fileName);
         if (System.IO.File.Exists(physicalPath))
         {
             System.IO.File.Delete(physicalPath);

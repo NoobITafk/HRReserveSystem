@@ -4,20 +4,51 @@
     ViewData["Title"] = "Видалити відгук";
 }
 
-<h1 class="h2 mb-3">Видалити відгук</h1>
-<div class="alert alert-warning">Підтвердіть видалення відгуку для <strong>@Model.Interview?.Application?.Candidate?.FullName</strong>.</div>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow text-danger">Видалення</span>
+            <h1 class="h2 fw-bold mb-1">Видалити відгук</h1>
+            <p class="text-muted mb-0">Підтвердження видалення експертного відгуку інтерв'юера.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
+    </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Автор</dt>
-    <dd class="col-sm-9">@(Model.Recruiter?.FullName ?? "Не вказано")</dd>
-    <dt class="col-sm-3">Оцінка</dt>
-    <dd class="col-sm-9">@Model.Score/10</dd>
-    <dt class="col-sm-3">Рекомендація</dt>
-    <dd class="col-sm-9"><span class="badge @HrOptions.FeedbackRecommendationBadge(Model.Recommendation)">@Model.Recommendation</span></dd>
-</dl>
+    <div class="form-card">
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <span class="badge-soft badge-soft-rose">Увага</span>
+            <div>Ви дійсно бажаєте видалити цей відгук для кандидата <strong>@Model.Interview?.Application?.Candidate?.FullName</strong>? Дані оцінювання буде втрачено.</div>
+        </div>
 
-<form asp-action="Delete">
-    <input type="hidden" asp-for="Id" />
-    <button type="submit" class="btn btn-danger">Видалити</button>
-    <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-</form>
+        <div class="detail-list mb-4">
+            <div class="detail-row">
+                <dt>Кандидат</dt>
+                <dd class="fw-bold">@Model.Interview?.Application?.Candidate?.FullName</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Автор відгуку</dt>
+                <dd>@(Model.Recruiter?.FullName ?? "Не вказано")</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Оцінка</dt>
+                <dd class="font-monospace fw-bold">@Model.Score / 10</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Рекомендація</dt>
+                <dd><span class="@HrOptions.FeedbackRecommendationBadge(Model.Recommendation)">@HrOptions.FeedbackRecommendationLabel(Model.Recommendation)</span></dd>
+            </div>
+        </div>
+
+        <form asp-action="Delete" class="d-flex flex-wrap gap-2 justify-content-between align-items-center pt-3 border-top">
+            <input type="hidden" asp-for="Id" />
+            <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+            <button type="submit" class="btn btn-outline-danger">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                Видалити відгук
+            </button>
+        </form>
+    </div>
+</div>

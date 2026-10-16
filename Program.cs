@@ -41,6 +41,7 @@ builder.Services.AddScoped<IdentityRecruiterSyncService>();
 builder.Services.AddScoped<IPasswordHasher<Recruiter>, PasswordHasher<Recruiter>>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
+builder.Services.AddScoped<ResumeIntelligenceService>();
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);

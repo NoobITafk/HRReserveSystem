@@ -12,6 +12,8 @@ public static class SeedData
         IdentityRecruiterSyncService identitySync,
         IPasswordHasher<Recruiter> passwordHasher)
     {
+        await EnsureDatabaseSchemaUpdatedAsync(context);
+
         var recruiters = await EnsureRecruitersAsync(context, passwordHasher);
         await identitySync.SyncRecruitersAsync(recruiters);
 
@@ -385,5 +387,35 @@ public static class SeedData
         }
 
         await context.SaveChangesAsync();
+    }
+
+    private static async Task EnsureDatabaseSchemaUpdatedAsync(ApplicationDbContext context)
+    {
+        try
+        {
+            if (context.Database.IsSqlite())
+            {
+                var recruiterCols = await context.Database.SqlQueryRaw<string>("SELECT name FROM pragma_table_info('Recruiters');").ToListAsync();
+                if (!recruiterCols.Contains("AvatarUrl"))
+                {
+                    await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Recruiters\" ADD COLUMN \"AvatarUrl\" TEXT;");
+                }
+
+                var candidateCols = await context.Database.SqlQueryRaw<string>("SELECT name FROM pragma_table_info('Candidates');").ToListAsync();
+                if (!candidateCols.Contains("AvatarUrl"))
+                {
+                    await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Candidates\" ADD COLUMN \"AvatarUrl\" TEXT;");
+                }
+            }
+            else
+            {
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Recruiters\" ADD COLUMN IF NOT EXISTS \"AvatarUrl\" text;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Candidates\" ADD COLUMN IF NOT EXISTS \"AvatarUrl\" text;");
+            }
+        }
+        catch
+        {
+            // Ignore in-memory test databases or if already migrated
+        }
     }
 }

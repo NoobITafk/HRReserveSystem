@@ -4,20 +4,55 @@
     ViewData["Title"] = "Видалити співбесіду";
 }
 
-<h1 class="h2 mb-3">Видалити співбесіду</h1>
-<div class="alert alert-warning">Підтвердіть видалення співбесіди для <strong>@Model.Application?.Candidate?.FullName</strong>.</div>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow text-danger">Видалення</span>
+            <h1 class="h2 fw-bold mb-1">Видалити співбесіду</h1>
+            <p class="text-muted mb-0">Підтвердження скасування та видалення запланованої зустрічі.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
+    </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Рекрутер</dt>
-    <dd class="col-sm-9">@(Model.Recruiter?.FullName ?? "Не призначено")</dd>
-    <dt class="col-sm-3">Дата</dt>
-    <dd class="col-sm-9">@Model.InterviewDate.ToString("g")</dd>
-    <dt class="col-sm-3">Тип</dt>
-    <dd class="col-sm-9">@Model.InterviewType</dd>
-</dl>
+    <div class="form-card">
+        <div class="alert alert-danger d-flex align-items-center gap-3 mb-4">
+            <span class="badge-soft badge-soft-rose">Увага</span>
+            <div>Ви дійсно бажаєте видалити співбесіду для кандидата <strong>@Model.Application?.Candidate?.FullName</strong>? Пов'язані відгуки та календарні записи буде видалено.</div>
+        </div>
 
-<form asp-action="Delete">
-    <input type="hidden" asp-for="Id" />
-    <button type="submit" class="btn btn-danger">Видалити</button>
-    <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-</form>
+        <div class="detail-list mb-4">
+            <div class="detail-row">
+                <dt>Кандидат</dt>
+                <dd class="fw-bold">@Model.Application?.Candidate?.FullName</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Вакансія</dt>
+                <dd>@Model.Application?.Vacancy?.Title</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Дата та час</dt>
+                <dd class="font-monospace">@Model.InterviewDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Тип зустрічі</dt>
+                <dd>@HrOptions.InterviewTypeLabel(Model.InterviewType)</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Відповідальний</dt>
+                <dd>@(Model.Recruiter?.FullName ?? "Не призначено")</dd>
+            </div>
+        </div>
+
+        <form asp-action="Delete" class="d-flex flex-wrap gap-2 justify-content-between align-items-center pt-3 border-top">
+            <input type="hidden" asp-for="Id" />
+            <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+            <button type="submit" class="btn btn-outline-danger">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                Видалити співбесіду
+            </button>
+        </form>
+    </div>
+</div>

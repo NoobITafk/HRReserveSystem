@@ -45,7 +45,8 @@ public static class HrOptions
     [
         "Admin",
         "Recruiter",
-        "Interviewer"
+        "Interviewer",
+        "Candidate"
     ];
 
     public static string ApplicationStatusBadge(string? status) => status switch
@@ -133,6 +134,7 @@ public static class HrOptions
         "Admin" => "badge-soft badge-soft-violet",
         "Recruiter" => "badge-soft badge-soft-blue",
         "Interviewer" => "badge-soft badge-soft-cyan",
+        "Candidate" => "badge-soft badge-soft-emerald",
         _ => "badge-soft badge-soft-slate"
     };
 
@@ -141,6 +143,7 @@ public static class HrOptions
         "Admin" => "Адміністратор",
         "Recruiter" => "Рекрутер",
         "Interviewer" => "Інтерв'юер",
+        "Candidate" => "Кандидат",
         _ => role ?? "Користувач"
     };
 }

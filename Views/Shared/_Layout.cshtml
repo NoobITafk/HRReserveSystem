@@ -16,7 +16,7 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/HRReserveSystem.styles.css" asp-append-version="true" />
@@ -28,8 +28,10 @@
     var canRecruit = User.IsInRole("Admin") || User.IsInRole("Recruiter");
     var canInterview = User.IsInRole("Admin") || User.IsInRole("Interviewer");
     var isAdmin = User.IsInRole("Admin");
+    var isCandidate = User.IsInRole("Candidate");
     var displayName = User.FindFirst("DisplayName")?.Value ?? User.Identity?.Name ?? "Користувач";
     var displayInitial = string.IsNullOrWhiteSpace(displayName) ? "H" : displayName.Trim()[0].ToString().ToUpperInvariant();
+    var avatarUrl = User.FindFirst("AvatarUrl")?.Value;
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
     var roleLabel = HrOptions.RecruiterRoleLabel(role);
     var shellClass = isAuthenticated ? "has-auth-shell" : "public-shell";
@@ -44,86 +46,142 @@
         {
             <aside class="app-sidebar d-none d-lg-flex" aria-label="Основна навігація">
                 <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index">
-                    <span class="sidebar-logo" aria-hidden="true">HR</span>
+                    <span class="sidebar-logo" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+                    </span>
                     <span class="sidebar-brand-copy">
                         <strong>HR Reserve</strong>
-                        <small>Talent &amp; Pipeline</small>
+                        <small>Executive Talent Cloud</small>
                     </span>
                 </a>
 
                 <nav class="sidebar-nav">
-                    <div class="sidebar-section-label">Огляд</div>
+                    <div class="sidebar-section-label">Аналітика</div>
                     <a class="sidebar-link @(activeClass("Home", "Index"))" asp-area="" asp-controller="Home" asp-action="Index">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></svg></span>
+                        <span class="sidebar-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                        </span>
                         <span>Панель керування</span>
                     </a>
 
                     @if (canRecruit)
                     {
-                        <div class="sidebar-section-label">Рекрутинг</div>
+                        <div class="sidebar-section-label">Рекрутинг і таланти</div>
                         <a class="sidebar-link @(activeClass("Candidates", ""))" asp-area="" asp-controller="Candidates" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" /></svg></span>
-                            <span>Кандидати</span>
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </span>
+                            <span>База кандидатів</span>
                         </a>
                         <a class="sidebar-link @(activeClass("Vacancies", ""))" asp-area="" asp-controller="Vacancies" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0h12v12H4V7h4Zm0 5h8" /></svg></span>
-                            <span>Вакансії</span>
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                            </span>
+                            <span>Відкриті вакансії</span>
                         </a>
                         <a class="sidebar-link @(activeClass("Applications", ""))" asp-area="" asp-controller="Applications" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M9 13h6M9 17h6" /></svg></span>
-                            <span>Заявки (Пайплайн)</span>
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+                            </span>
+                            <span>Пайплайн заявок</span>
                         </a>
                     }
 
-                    <div class="sidebar-section-label">Оцінювання</div>
-                    <a class="sidebar-link @(currentController == "Interviews" && currentAction != "Calendar" ? "active" : "")" asp-area="" asp-controller="Interviews" asp-action="Index">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4v3m10-3v3M5 8h14M5 5h14v15H5zM8 12h3m3 0h2M8 16h5" /></svg></span>
-                        <span>Співбесіди</span>
-                    </a>
-                    <a class="sidebar-link @(activeClass("Interviews", "Calendar"))" asp-area="" asp-controller="Interviews" asp-action="Calendar">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
-                        <span>Календар зустрічей</span>
-                    </a>
-                    @if (canInterview)
+                    @if (isCandidate)
                     {
-                        <a class="sidebar-link @(activeClass("InterviewFeedbacks", ""))" asp-area="" asp-controller="InterviewFeedbacks" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H8l-3 4V5Zm4 4h6m-6 4h4" /></svg></span>
-                            <span>Відгуки інтерв'юерів</span>
+                        <div class="sidebar-section-label">Мій простір</div>
+                        <a class="sidebar-link @(activeClass("Account", "Profile"))" asp-area="" asp-controller="Account" asp-action="Profile">
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                            </span>
+                            <span>Портфоліо та резюме</span>
                         </a>
-                        <a class="sidebar-link @(activeClass("SoftSkillAssessments", ""))" asp-area="" asp-controller="SoftSkillAssessments" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z" /></svg></span>
-                            <span>Оцінка Soft Skills</span>
+                        <a class="sidebar-link @(activeClass("Vacancies", ""))" asp-area="" asp-controller="Vacancies" asp-action="Index">
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                            </span>
+                            <span>Відкриті вакансії</span>
                         </a>
                     }
 
-                    <div class="sidebar-section-label">Система</div>
+                    @if (!isCandidate)
+                    {
+                        <div class="sidebar-section-label">Інтерв'ю та оцінка</div>
+                        <a class="sidebar-link @(currentController == "Interviews" && currentAction != "Calendar" ? "active" : "")" asp-area="" asp-controller="Interviews" asp-action="Index">
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/></svg>
+                            </span>
+                            <span>Співбесіди</span>
+                        </a>
+                        <a class="sidebar-link @(activeClass("Interviews", "Calendar"))" asp-area="" asp-controller="Interviews" asp-action="Calendar">
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>
+                            </span>
+                            <span>Календар зустрічей</span>
+                        </a>
+                        @if (canInterview)
+                        {
+                            <a class="sidebar-link @(activeClass("InterviewFeedbacks", ""))" asp-area="" asp-controller="InterviewFeedbacks" asp-action="Index">
+                                <span class="sidebar-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg>
+                                </span>
+                                <span>Експертні відгуки</span>
+                            </a>
+                            <a class="sidebar-link @(activeClass("SoftSkillAssessments", ""))" asp-area="" asp-controller="SoftSkillAssessments" asp-action="Index">
+                                <span class="sidebar-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                </span>
+                                <span>Матриця Soft Skills</span>
+                            </a>
+                        }
+                    }
+
+                    <div class="sidebar-section-label">Організація</div>
                     @if (isAdmin)
                     {
                         <a class="sidebar-link @(activeClass("Recruiters", ""))" asp-area="" asp-controller="Recruiters" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6-1a3 3 0 1 0 0-6M3 20a6 6 0 0 1 12 0m3 0a6 6 0 0 0-3-5.2" /></svg></span>
-                            <span>Команда рекрутерів</span>
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+                            </span>
+                            <span>Команда та ролі</span>
                         </a>
                     }
                     <a class="sidebar-link @(activeClass("Account", "Profile"))" asp-area="" asp-controller="Account" asp-action="Profile">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+                        <span class="sidebar-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                        </span>
                         <span>Мій профіль</span>
                     </a>
                     <a class="sidebar-link @(activeClass("Home", "About"))" asp-area="" asp-controller="Home" asp-action="About">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 17v-5m0-4h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" /></svg></span>
-                        <span>Про систему</span>
+                        <span class="sidebar-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        </span>
+                        <span>Про платформу</span>
                     </a>
                 </nav>
 
                 <div class="sidebar-footer">
-                    <a class="sidebar-profile text-decoration-none" asp-controller="Account" asp-action="Profile" title="Перейти до налаштувань профілю">
-                        <div class="profile-avatar" aria-hidden="true">@displayInitial</div>
+                    <a class="sidebar-profile text-decoration-none" asp-controller="Account" asp-action="Profile" title="Налаштування профілю">
+                        <div class="profile-avatar" aria-hidden="true">
+                            @if (!string.IsNullOrWhiteSpace(avatarUrl))
+                            {
+                                <img src="@avatarUrl" alt="@displayName" class="profile-avatar-img" />
+                            }
+                            else
+                            {
+                                @displayInitial
+                            }
+                        </div>
                         <div class="min-w-0">
                             <div class="text-truncate fw-semibold sidebar-profile-name">@displayName</div>
                             <span class="@HrOptions.RecruiterRoleBadge(role)">@roleLabel</span>
                         </div>
                     </a>
                     <form asp-controller="Account" asp-action="Logout" method="post">
-                        <button class="btn btn-outline-danger btn-sm w-100" type="submit">Вийти з акаунту</button>
+                        <button class="btn-sidebar-logout" type="submit">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                            <span>Вийти з акаунту</span>
+                        </button>
                     </form>
                 </div>
             </aside>
@@ -134,15 +192,17 @@
                 <div class="d-flex align-items-center gap-3 min-w-0">
                     @if (isAuthenticated)
                     {
-                        <button class="btn btn-icon d-none d-lg-inline-flex" type="button" data-sidebar-toggle aria-expanded="true" aria-label="Згорнути меню">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                        <button class="btn btn-icon d-none d-lg-inline-flex" type="button" data-sidebar-toggle aria-expanded="true" aria-label="Згорнути меню" title="Згорнути або розгорнути бічну панель">
+                            <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
                         </button>
                         <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Відкрити меню">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                            <svg viewBox="0 0 24 24"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
                         </button>
                     }
                     <a class="topbar-brand @(isAuthenticated ? "d-lg-none" : "")" asp-area="" asp-controller="Home" asp-action="Index">
-                        <span class="sidebar-logo sidebar-logo-sm" aria-hidden="true">HR</span>
+                        <span class="sidebar-logo sidebar-logo-sm" aria-hidden="true">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+                        </span>
                         <span>HR Reserve</span>
                     </a>
                 </div>
@@ -150,8 +210,11 @@
                 @if (isAuthenticated && canRecruit)
                 {
                     <form class="topbar-search d-none d-xl-flex" role="search" asp-controller="Candidates" asp-action="Index" method="get" data-global-search>
-                        <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" /></svg></span>
-                        <input type="search" class="form-control" name="search" placeholder="Пошук кандидата за ПІБ, email або навичками..." aria-label="Пошук" />
+                        <span aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        </span>
+                        <input type="search" class="form-control" name="search" placeholder="Швидкий пошук кандидата за ПІБ, email або стеком технологій..." aria-label="Пошук" />
+                        <kbd class="search-kbd d-none d-xxl-inline-block">Enter ↵</kbd>
                     </form>
                 }
 
@@ -160,53 +223,82 @@
                     {
                         <div class="app-dropdown" data-dropdown>
                             <button class="btn btn-sm btn-icon btn-notification" type="button" aria-label="Сповіщення" aria-expanded="false" data-dropdown-toggle data-notification-toggle>
-                                <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg></span>
+                                <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
                                 <span class="notification-dot" data-notification-dot></span>
                             </button>
                             <div class="app-dropdown-menu notification-menu" data-dropdown-menu>
-                                <div class="dropdown-title">Центр сповіщень</div>
+                                <div class="dropdown-title d-flex align-items-center justify-content-between">
+                                    <span>Центр сповіщень</span>
+                                    <span class="badge-soft badge-soft-emerald">Live</span>
+                                </div>
                                 <div class="notification-list" data-notification-list>
                                     <div class="notification-item">
                                         <strong>Календар співбесід активний</strong>
                                         <span>Перевірте заплановані зустрічі у розділі співбесід.</span>
                                     </div>
                                     <div class="notification-item">
-                                        <strong>Кадровий резерв оновлено</strong>
-                                        <span>Усі зміни статусів синхронізовано з базою даних.</span>
+                                        <strong>Кадровий резерв синхронізовано</strong>
+                                        <span>Усі зміни етапів відбору та оцінки збережено.</span>
                                     </div>
                                 </div>
                                 <div class="notification-empty d-none" data-notification-empty>Нових повідомлень немає</div>
                             </div>
                         </div>
                     }
-                    <button class="btn btn-sm btn-theme-toggle btn-theme-toggle-compact" type="button" data-theme-toggle aria-label="Перемкнути тему" aria-pressed="false" title="Перемкнути світлу/темну тему">
-                        <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
+                    <button class="btn btn-sm btn-theme-toggle" type="button" data-theme-toggle aria-label="Перемкнути тему" aria-pressed="false" title="Перемкнути світлу / темну тему">
+                        <span class="theme-toggle-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                        </span>
                         <span class="theme-toggle-text d-none d-sm-inline">Темна</span>
                     </button>
                     @if (isAuthenticated)
                     {
                         <div class="app-dropdown d-none d-md-block" data-dropdown>
-                            <button class="navbar-text small app-user-chip profile-button" type="button" aria-expanded="false" data-dropdown-toggle>
-                                <span class="profile-avatar topbar-avatar" aria-hidden="true">@displayInitial</span>
+                            <button class="profile-button" type="button" aria-expanded="false" data-dropdown-toggle>
+                                <span class="profile-avatar topbar-avatar" aria-hidden="true">
+                                    @if (!string.IsNullOrWhiteSpace(avatarUrl))
+                                    {
+                                        <img src="@avatarUrl" alt="@displayName" class="profile-avatar-img" />
+                                    }
+                                    else
+                                    {
+                                        @displayInitial
+                                    }
+                                </span>
                                 <span class="profile-copy">
                                     <span class="profile-name">@displayName</span>
                                     <span class="profile-role">@roleLabel</span>
                                 </span>
-                                <span class="profile-caret" aria-hidden="true">⌄</span>
+                                <span class="profile-caret" aria-hidden="true">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                                </span>
                             </button>
                             <div class="app-dropdown-menu profile-menu" data-dropdown-menu>
                                 <div class="profile-menu-head">
-                                    <span class="profile-avatar" aria-hidden="true">@displayInitial</span>
+                                    <span class="profile-avatar" aria-hidden="true">
+                                        @if (!string.IsNullOrWhiteSpace(avatarUrl))
+                                        {
+                                            <img src="@avatarUrl" alt="@displayName" class="profile-avatar-img" />
+                                        }
+                                        else
+                                        {
+                                            @displayInitial
+                                        }
+                                    </span>
                                     <span class="min-w-0">
                                         <strong class="text-truncate">@displayName</strong>
                                         <small>@roleLabel</small>
                                     </span>
                                 </div>
-                                <a class="dropdown-item-soft text-decoration-none d-block mb-1" asp-controller="Account" asp-action="Profile">
-                                    Налаштування профілю
+                                <a class="dropdown-item-soft mb-1" asp-controller="Account" asp-action="Profile">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+                                    <span>Налаштування профілю</span>
                                 </a>
                                 <form asp-controller="Account" asp-action="Logout" method="post">
-                                    <button class="dropdown-item-soft dropdown-item-danger w-100 text-start" type="submit">Вийти з системи</button>
+                                    <button class="dropdown-item-soft dropdown-item-danger w-100 text-start" type="submit">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                                        <span>Вийти з системи</span>
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -225,20 +317,28 @@
                 {
                     <div class="app-toast app-toast-success mb-4" data-auto-dismiss="5000" role="status">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="toast-indicator">✓</span>
+                            <span class="toast-indicator">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </span>
                             <span>@successMessage</span>
                         </div>
-                        <button type="button" class="btn-close-toast" data-toast-close aria-label="Закрити">✕</button>
+                        <button type="button" class="btn-close-toast" data-toast-close aria-label="Закрити">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
                     </div>
                 }
                 @if (!string.IsNullOrWhiteSpace(errorMessage))
                 {
                     <div class="app-toast app-toast-danger mb-4" role="alert">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="toast-indicator">!</span>
+                            <span class="toast-indicator">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                            </span>
                             <span>@errorMessage</span>
                         </div>
-                        <button type="button" class="btn-close-toast" data-toast-close aria-label="Закрити">✕</button>
+                        <button type="button" class="btn-close-toast" data-toast-close aria-label="Закрити">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
                     </div>
                 }
 
@@ -247,7 +347,10 @@
 
             <footer class="border-top footer text-muted app-footer">
                 <div class="container-fluid app-container d-flex flex-wrap justify-content-between align-items-center gap-2">
-                    <span>&copy; 2026 HR Reserve System — Платформа кадрового резерву та рекрутингу</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="status-dot status-dot-emerald"></span>
+                        <span>&copy; 2026 HR Reserve System — Платформа кадрового резерву та рекрутингу</span>
+                    </div>
                     <div class="d-flex gap-3">
                         <a asp-area="" asp-controller="Home" asp-action="About">Про систему</a>
                         <a asp-area="" asp-controller="Home" asp-action="CourseMaterials">Архітектура</a>
@@ -261,107 +364,110 @@
     {
         <div class="offcanvas offcanvas-start app-offcanvas" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
             <div class="offcanvas-header">
-                <div>
-                    <h2 class="offcanvas-title h5 mb-0" id="mobileMenuLabel">HR Reserve</h2>
-                    <div class="small text-muted">@displayName · @roleLabel</div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="profile-avatar" style="width: 36px; height: 36px; font-size: 0.85rem;" aria-hidden="true">
+                        @if (!string.IsNullOrWhiteSpace(avatarUrl))
+                        {
+                            <img src="@avatarUrl" alt="@displayName" class="profile-avatar-img" />
+                        }
+                        else
+                        {
+                            @displayInitial
+                        }
+                    </span>
+                    <div>
+                        <h2 class="offcanvas-title h6 mb-0" id="mobileMenuLabel">@displayName</h2>
+                        <div class="small" style="color:#6ee7b7;">@roleLabel</div>
+                    </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Закрити"></button>
             </div>
             <div class="offcanvas-body d-flex flex-column">
                 <nav class="sidebar-nav flex-grow-1">
                     <a class="sidebar-link @(activeClass("Home", "Index"))" asp-area="" asp-controller="Home" asp-action="Index">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></svg></span>
+                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg></span>
                         <span>Панель керування</span>
                     </a>
                     @if (canRecruit)
                     {
                         <a class="sidebar-link @(activeClass("Candidates", ""))" asp-area="" asp-controller="Candidates" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" /></svg></span>
+                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                             <span>Кандидати</span>
                         </a>
                         <a class="sidebar-link @(activeClass("Vacancies", ""))" asp-area="" asp-controller="Vacancies" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0h12v12H4V7h4Zm0 5h8" /></svg></span>
+                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
                             <span>Вакансії</span>
                         </a>
                         <a class="sidebar-link @(activeClass("Applications", ""))" asp-area="" asp-controller="Applications" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M9 13h6M9 17h6" /></svg></span>
+                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg></span>
                             <span>Заявки</span>
                         </a>
                     }
                     <a class="sidebar-link @(activeClass("Interviews", ""))" asp-area="" asp-controller="Interviews" asp-action="Index">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4v3m10-3v3M5 8h14M5 5h14v15H5zM8 12h3m3 0h2M8 16h5" /></svg></span>
+                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></span>
                         <span>Співбесіди</span>
                     </a>
                     @if (canInterview)
                     {
                         <a class="sidebar-link @(activeClass("InterviewFeedbacks", ""))" asp-area="" asp-controller="InterviewFeedbacks" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H8l-3 4V5Zm4 4h6m-6 4h4" /></svg></span>
+                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="m9 15 2 2 4-4"/></svg></span>
                             <span>Відгуки</span>
                         </a>
                         <a class="sidebar-link @(activeClass("SoftSkillAssessments", ""))" asp-area="" asp-controller="SoftSkillAssessments" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z" /></svg></span>
+                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
                             <span>Soft Skills</span>
                         </a>
                     }
                     @if (isAdmin)
                     {
                         <a class="sidebar-link @(activeClass("Recruiters", ""))" asp-area="" asp-controller="Recruiters" asp-action="Index">
-                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6-1a3 3 0 1 0 0-6M3 20a6 6 0 0 1 12 0m3 0a6 6 0 0 0-3-5.2" /></svg></span>
+                            <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></span>
                             <span>Рекрутери</span>
                         </a>
                     }
                     <a class="sidebar-link @(activeClass("Account", "Profile"))" asp-area="" asp-controller="Account" asp-action="Profile">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></span>
                         <span>Мій профіль</span>
                     </a>
-                    <a class="sidebar-link @(activeClass("Home", "About"))" asp-area="" asp-controller="Home" asp-action="About">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 17v-5m0-4h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" /></svg></span>
-                        <span>Про систему</span>
-                    </a>
-                    <a class="sidebar-link @(activeClass("Home", "CourseMaterials"))" asp-area="" asp-controller="Home" asp-action="CourseMaterials">
-                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg></span>
-                        <span>Архітектура</span>
-                    </a>
                 </nav>
-                <button class="btn btn-theme-toggle btn-theme-toggle-compact w-100 mb-2" type="button" data-theme-toggle aria-label="Перемкнути тему">
-                    <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
-                    <span class="theme-toggle-text">Темна</span>
-                </button>
-                <form asp-controller="Account" asp-action="Logout" method="post">
-                    <button class="btn btn-outline-danger w-100" type="submit">Вийти</button>
+                <form asp-controller="Account" asp-action="Logout" method="post" class="mt-3">
+                    <button class="btn-sidebar-logout" type="submit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                        <span>Вийти</span>
+                    </button>
                 </form>
             </div>
         </div>
 
         <nav class="mobile-bottom-nav d-md-none" aria-label="Швидка мобільна навігація">
             <a class="@(activeClass("Home", "Index"))" asp-area="" asp-controller="Home" asp-action="Index">
-                <span aria-hidden="true">▦</span>
+                <svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
                 <small>Панель</small>
             </a>
             @if (canRecruit)
             {
                 <a class="@(activeClass("Candidates", ""))" asp-area="" asp-controller="Candidates" asp-action="Index">
-                    <span aria-hidden="true">К</span>
+                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                     <small>Кандидати</small>
                 </a>
                 <a class="@(activeClass("Vacancies", ""))" asp-area="" asp-controller="Vacancies" asp-action="Index">
-                    <span aria-hidden="true">В</span>
+                    <svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
                     <small>Вакансії</small>
                 </a>
             }
             else
             {
                 <a class="@(activeClass("Interviews", ""))" asp-area="" asp-controller="Interviews" asp-action="Index">
-                    <span aria-hidden="true">С</span>
+                    <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                     <small>Співбесіди</small>
                 </a>
                 <a class="@(activeClass("InterviewFeedbacks", ""))" asp-area="" asp-controller="InterviewFeedbacks" asp-action="Index">
-                    <span aria-hidden="true">Вд</span>
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     <small>Відгуки</small>
                 </a>
             }
             <button type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
-                <span aria-hidden="true">⋯</span>
+                <svg viewBox="0 0 24 24"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
                 <small>Меню</small>
             </button>
         </nav>

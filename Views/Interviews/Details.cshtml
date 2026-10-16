@@ -14,14 +14,14 @@
         <div class="text-muted small">Вакансія: @Model.Application?.Vacancy?.Title</div>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create" asp-route-interviewId="@Model.Id"><span aria-hidden="true">+</span> Додати відгук</a>
+        <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create" asp-route-interviewId="@Model.Id"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Додати відгук</a>
         <a class="btn btn-outline-primary" asp-action="GoogleCalendar" asp-route-id="@Model.Id" target="_blank" rel="noopener">Google Calendar</a>
         <a class="btn btn-outline-secondary" asp-action="ExportIcs" asp-route-id="@Model.Id">Експорт .ics</a>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {
             <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
         }
-        <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
+        <a class="btn btn-outline-secondary" asp-action="Index"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>До списку</a>
     </div>
 </div>
 

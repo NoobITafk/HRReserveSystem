@@ -32,6 +32,10 @@ public class Recruiter : IValidatableObject
     [Display(Name = "Роль")]
     public string Role { get; set; } = "Recruiter";
 
+    [StringLength(500)]
+    [Display(Name = "Фото / Аватар")]
+    public string? AvatarUrl { get; set; }
+
     [Display(Name = "Дата створення")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

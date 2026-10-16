@@ -4,51 +4,82 @@
     ViewData["Title"] = "Нова оцінка soft skills";
 }
 
-<h1 class="h2 mb-3">Нова оцінка soft skills</h1>
+<div class="form-card-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <span class="section-eyebrow">Оцінювання компетенцій</span>
+            <h1 class="h2 fw-bold mb-1">Нова оцінка soft skills</h1>
+            <p class="text-muted mb-0">Аналіз особистісних якостей, комунікації, лідерства та командної взаємодії кандидата.</p>
+        </div>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+            Назад до списку
+        </a>
+    </div>
 
-<form asp-action="Create" class="row g-3">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-    <div class="col-md-6">
-        <label asp-for="CandidateId" class="form-label"></label>
-        <select asp-for="CandidateId" class="form-select" asp-items="ViewBag.CandidateId"></select>
-        <span asp-validation-for="CandidateId" class="text-danger"></span>
+    <div class="form-card">
+        <form asp-action="Create" class="row g-3">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small col-12 mb-2"></div>
+
+            <div class="col-12">
+                <label asp-for="CandidateId" class="form-label fw-semibold">Кандидат для оцінювання</label>
+                <select asp-for="CandidateId" class="form-select" asp-items="ViewBag.CandidateId">
+                    <option value="">Оберіть кандидата зі списку...</option>
+                </select>
+                <span asp-validation-for="CandidateId" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 mt-4">
+                <h6 class="fw-bold mb-1">Шкала критеріїв (від 1 до 10 балів)</h6>
+                <p class="text-muted small mb-3">Виставте бали за кожною компетенцією від 1 (початковий) до 10 (експертний).</p>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Communication" class="form-label fw-semibold">Комунікація</label>
+                <input asp-for="Communication" class="form-control font-monospace" type="number" min="1" max="10" placeholder="1-10" />
+                <span asp-validation-for="Communication" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Teamwork" class="form-label fw-semibold">Робота в команді</label>
+                <input asp-for="Teamwork" class="form-control font-monospace" type="number" min="1" max="10" placeholder="1-10" />
+                <span asp-validation-for="Teamwork" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Responsibility" class="form-label fw-semibold">Відповідальність</label>
+                <input asp-for="Responsibility" class="form-control font-monospace" type="number" min="1" max="10" placeholder="1-10" />
+                <span asp-validation-for="Responsibility" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="StressResistance" class="form-label fw-semibold">Стресостійкість</label>
+                <input asp-for="StressResistance" class="form-control font-monospace" type="number" min="1" max="10" placeholder="1-10" />
+                <span asp-validation-for="StressResistance" class="text-danger small"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Leadership" class="form-label fw-semibold">Лідерські якості</label>
+                <input asp-for="Leadership" class="form-control font-monospace" type="number" min="1" max="10" placeholder="1-10" />
+                <span asp-validation-for="Leadership" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="OverallComment" class="form-label fw-semibold">Загальний розгорнутий коментар</label>
+                <textarea asp-for="OverallComment" class="form-control" rows="4" placeholder="Детальні спостереження під час співбесіди, сильні сторони та потенційні ризики..."></textarea>
+                <span asp-validation-for="OverallComment" class="text-danger small"></span>
+            </div>
+
+            <div class="col-12 pt-3 border-top d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <a class="btn btn-outline-secondary" asp-action="Index">Скасувати</a>
+                <button type="submit" class="btn btn-primary">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Зберегти оцінку
+                </button>
+            </div>
+        </form>
     </div>
-    <div class="col-md-6"></div>
-    <div class="col-md-4">
-        <label asp-for="Communication" class="form-label"></label>
-        <input asp-for="Communication" class="form-control" min="1" max="10" />
-        <span asp-validation-for="Communication" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="Teamwork" class="form-label"></label>
-        <input asp-for="Teamwork" class="form-control" min="1" max="10" />
-        <span asp-validation-for="Teamwork" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="Responsibility" class="form-label"></label>
-        <input asp-for="Responsibility" class="form-control" min="1" max="10" />
-        <span asp-validation-for="Responsibility" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="StressResistance" class="form-label"></label>
-        <input asp-for="StressResistance" class="form-control" min="1" max="10" />
-        <span asp-validation-for="StressResistance" class="text-danger"></span>
-    </div>
-    <div class="col-md-4">
-        <label asp-for="Leadership" class="form-label"></label>
-        <input asp-for="Leadership" class="form-control" min="1" max="10" />
-        <span asp-validation-for="Leadership" class="text-danger"></span>
-    </div>
-    <div class="col-12">
-        <label asp-for="OverallComment" class="form-label"></label>
-        <textarea asp-for="OverallComment" class="form-control" rows="4"></textarea>
-        <span asp-validation-for="OverallComment" class="text-danger"></span>
-    </div>
-    <div class="col-12 d-flex gap-2">
-        <button type="submit" class="btn btn-success">Зберегти</button>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
-    </div>
-</form>
+</div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}

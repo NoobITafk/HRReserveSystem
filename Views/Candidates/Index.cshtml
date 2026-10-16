@@ -24,7 +24,7 @@
         <a class="btn btn-outline-primary" asp-action="ExportCsv" asp-route-search="@ViewData["CurrentFilter"]" asp-route-minExperience="@ViewData["MinExperience"]" title="Завантажити поточний список кандидатів у форматі CSV">
             Експорт у Excel/CSV
         </a>
-        <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
+        <a class="btn btn-primary" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Додати кандидата</a>
     </div>
 </div>
 
@@ -68,7 +68,14 @@
                     <tr class="clickable-row" data-row-link="@Url.Action("Details", new { id = item.Id })" tabindex="0">
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="profile-avatar" style="height:34px;min-width:34px;font-size:0.82rem;">@initial</span>
+                                @if (!string.IsNullOrWhiteSpace(item.AvatarUrl))
+                                {
+                                    <img src="@item.AvatarUrl" alt="@item.FullName" class="profile-avatar profile-avatar-img shadow-sm" style="height:34px;width:34px;min-width:34px;" />
+                                }
+                                else
+                                {
+                                    <span class="profile-avatar" style="height:34px;min-width:34px;font-size:0.82rem;">@initial</span>
+                                }
                                 <div>
                                     <div class="fw-semibold">@item.FullName</div>
                                     <small class="text-muted">Додано @item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</small>
@@ -132,7 +139,7 @@
             <p class="text-muted mb-3">@(showHidden ? "Прихованих кандидатів у базі наразі немає." : "Спробуйте змінити параметри пошуку або додайте нового кандидата до кадрового резерву.")</p>
             @if (!showHidden)
             {
-                <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
+                <a class="btn btn-primary" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Додати кандидата</a>
             }
         </div>
     }
