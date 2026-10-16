@@ -9,17 +9,18 @@
     var today = DateTime.Today;
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">Календар співбесід</h1>
-        <p class="text-muted mb-0">План співбесід за датами, кандидатами, вакансіями, типом і результатом.</p>
+        <span class="section-eyebrow">Таймлайн зустрічей</span>
+        <h1 class="h2 fw-bold mb-1">Календар співбесід</h1>
+        <p class="text-muted mb-0">Розклад зустрічей за датами з прямим експортом у Google Calendar та .ics.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-secondary" asp-action="Index">Список</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">Табличний список</a>
         <a class="btn btn-outline-primary" asp-action="ExportIcs">Експорт .ics</a>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {
-            <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Запланувати</a>
+            <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Запланувати зустріч</a>
         }
     </div>
 </div>
@@ -35,28 +36,28 @@
                 <div class="calendar-day-head">
                     <div>
                         <span class="calendar-weekday">@day.Key.ToString("dddd")</span>
-                        <h2 class="h5 mb-0">@day.Key.ToString("dd.MM.yyyy")</h2>
+                        <h2 class="h5 mb-0 font-monospace">@day.Key.ToString("dd.MM.yyyy")</h2>
                     </div>
-                    <span class="badge text-bg-info text-dark">@day.Count()</span>
+                    <span class="badge-soft badge-soft-blue font-monospace">@day.Count()</span>
                 </div>
 
                 <div class="calendar-events">
                     @foreach (var interview in day)
                     {
                         <article class="calendar-event">
-                            <div class="calendar-event-time">@interview.InterviewDate.ToString("HH:mm")</div>
+                            <div class="calendar-event-time font-monospace">@interview.InterviewDate.ToString("HH:mm")</div>
                             <div class="calendar-event-body">
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                                     <strong>@interview.Application?.Candidate?.FullName</strong>
-                                    <span class="badge @HrOptions.InterviewResultBadge(interview.Result)">@interview.Result</span>
+                                    <span class="@HrOptions.InterviewResultBadge(interview.Result)">@HrOptions.InterviewResultLabel(interview.Result)</span>
                                 </div>
                                 <div class="text-muted">@interview.Application?.Vacancy?.Title</div>
-                                <div class="small text-muted">@interview.InterviewType · @(interview.Recruiter?.FullName ?? "Не призначено")</div>
+                                <div class="small text-muted">@HrOptions.InterviewTypeLabel(interview.InterviewType) · @(interview.Recruiter?.FullName ?? "Не призначено")</div>
                             </div>
                             <div class="d-flex flex-wrap gap-2">
-                                <a class="btn btn-sm btn-outline-success" asp-action="GoogleCalendar" asp-route-id="@interview.Id" target="_blank" rel="noopener">Google</a>
-                                <a class="btn btn-sm btn-outline-primary" asp-action="ExportIcs" asp-route-id="@interview.Id">.ics</a>
-                                <a class="btn btn-sm btn-outline-info" asp-action="Details" asp-route-id="@interview.Id">Деталі</a>
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="GoogleCalendar" asp-route-id="@interview.Id" target="_blank" rel="noopener">Google</a>
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="ExportIcs" asp-route-id="@interview.Id">.ics</a>
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@interview.Id">Деталі</a>
                             </div>
                         </article>
                     }
@@ -68,11 +69,11 @@
 else
 {
     <div class="empty-state">
-        <h2 class="h5">Співбесіди ще не заплановані</h2>
-        <p class="text-muted mb-3">Календар буде заповнюватися автоматично після створення співбесід.</p>
+        <h2 class="h5 fw-bold">Співбесіди ще не заплановані</h2>
+        <p class="text-muted mb-3">Календар заповнюється автоматично після призначення співбесід кандидатам.</p>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {
-            <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Запланувати співбесіду</a>
+            <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Запланувати співбесіду</a>
         }
     </div>
 }

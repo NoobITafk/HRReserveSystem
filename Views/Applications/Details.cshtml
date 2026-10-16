@@ -4,51 +4,82 @@
     ViewData["Title"] = "Деталі заявки";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h2 mb-0">Заявка #@Model.Id</h1>
-    <div class="d-flex gap-2">
-        <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="section-eyebrow">Заявка на вакансію #@Model.Id</span>
+        <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2">
+            <span>@Model.Candidate?.FullName → @Model.Vacancy?.Title</span>
+            <span class="@HrOptions.ApplicationStatusBadge(Model.Status)">@HrOptions.ApplicationStatusLabel(Model.Status)</span>
+        </h1>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" asp-controller="Interviews" asp-action="Create"><span aria-hidden="true">+</span> Призначити співбесіду</a>
+        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
     </div>
 </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Кандидат</dt>
-    <dd class="col-sm-9">@Model.Candidate?.FullName</dd>
-    <dt class="col-sm-3">Вакансія</dt>
-    <dd class="col-sm-9">@Model.Vacancy?.Title</dd>
-    <dt class="col-sm-3">Статус</dt>
-    <dd class="col-sm-9"><span class="badge @HrOptions.ApplicationStatusBadge(Model.Status)">@Model.Status</span></dd>
-    <dt class="col-sm-3">Дата подачі</dt>
-    <dd class="col-sm-9">@Model.AppliedAt.ToLocalTime().ToString("g")</dd>
-    <dt class="col-sm-3">Коментар рекрутера</dt>
-    <dd class="col-sm-9">@(string.IsNullOrWhiteSpace(Model.RecruiterComment) ? "Не додано" : Model.RecruiterComment)</dd>
-</dl>
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Інформація про заявку</h2>
+    </div>
+    <div class="card-body">
+        <dl class="detail-list">
+            <div class="detail-row">
+                <dt>Кандидат</dt>
+                <dd>@Model.Candidate?.FullName</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Вакансія</dt>
+                <dd>@Model.Vacancy?.Title</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Поточний етап</dt>
+                <dd><span class="@HrOptions.ApplicationStatusBadge(Model.Status)">@HrOptions.ApplicationStatusLabel(Model.Status)</span></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Дата подачі</dt>
+                <dd class="font-monospace">@Model.AppliedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Коментар рекрутера</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Model.RecruiterComment) ? "Коментар відсутній" : Model.RecruiterComment)</dd>
+            </div>
+        </dl>
+    </div>
+</div>
 
-<h2 class="h5 mt-4">Співбесіди</h2>
-@if (Model.Interviews.Any())
-{
-    <table class="table table-sm align-middle">
-        <thead>
-            <tr>
-                <th>Дата</th>
-                <th>Тип</th>
-                <th>Результат</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var interview in Model.Interviews)
-        {
-            <tr>
-                <td>@interview.InterviewDate.ToString("g")</td>
-                <td>@interview.InterviewType</td>
-                <td><span class="badge @HrOptions.InterviewResultBadge(interview.Result)">@interview.Result</span></td>
-            </tr>
-        }
-        </tbody>
-    </table>
-}
-else
-{
-    <div class="empty-state">Для цієї заявки ще немає співбесід.</div>
-}
+<div class="card">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Призначені співбесіди</h2>
+        <span class="badge-soft badge-soft-slate font-monospace">@Model.Interviews.Count</span>
+    </div>
+    @if (Model.Interviews.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Дата та час</th>
+                        <th>Етап</th>
+                        <th>Результат</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var interview in Model.Interviews)
+                {
+                    <tr>
+                        <td class="font-monospace">@interview.InterviewDate.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td><span class="badge-soft badge-soft-slate">@HrOptions.InterviewTypeLabel(interview.InterviewType)</span></td>
+                        <td><span class="@HrOptions.InterviewResultBadge(interview.Result)">@HrOptions.InterviewResultLabel(interview.Result)</span></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">Для цієї заявки ще не призначено жодної співбесіди.</div>
+    }
+</div>

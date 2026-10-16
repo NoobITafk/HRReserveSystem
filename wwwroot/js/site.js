@@ -1,6 +1,3 @@
-// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
-
 (function () {
     const root = document.documentElement;
     const themeStorageKey = "hrreserve-theme";
@@ -24,7 +21,7 @@
     }
 
     function normalizeTheme(theme) {
-        return theme === "light" ? "light" : "dark";
+        return theme === "dark" ? "dark" : "light";
     }
 
     function getSavedTheme() {
@@ -206,8 +203,59 @@
                 passwordInput.value = button.getAttribute("data-demo-password") || "";
                 loginInput.dispatchEvent(new Event("input", { bubbles: true }));
                 passwordInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+                if (button.getAttribute("data-autologin") === "true" || button.classList.contains("demo-autologin")) {
+                    const form = button.closest("form") || document.getElementById("loginForm") || document.querySelector("form[action*='Login']") || document.querySelector("form");
+                    if (form) {
+                        form.submit();
+                        return;
+                    }
+                }
                 passwordInput.focus();
             });
+        });
+    }
+
+    function initPasswordToggles() {
+        document.querySelectorAll("[data-password-toggle]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const wrapper = button.closest(".password-field-group") || button.parentElement;
+                if (!wrapper) {
+                    return;
+                }
+                const input = wrapper.querySelector("input");
+                if (!input) {
+                    return;
+                }
+                const isPassword = input.getAttribute("type") === "password";
+                input.setAttribute("type", isPassword ? "text" : "password");
+                button.classList.toggle("is-visible", isPassword);
+            });
+        });
+    }
+
+    function initToasts() {
+        document.querySelectorAll("[data-toast-close]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const toast = button.closest(".app-toast");
+                if (toast) {
+                    toast.remove();
+                }
+            });
+        });
+
+        document.querySelectorAll("[data-auto-dismiss]").forEach(function (toast) {
+            const delay = parseInt(toast.getAttribute("data-auto-dismiss") || "5000", 10);
+            setTimeout(function () {
+                if (toast.isConnected) {
+                    toast.style.opacity = "0";
+                    setTimeout(function () {
+                        if (toast.isConnected) {
+                            toast.remove();
+                        }
+                    }, 250);
+                }
+            }, delay);
         });
     }
 
@@ -221,7 +269,7 @@
             }
 
             row.addEventListener("click", function (event) {
-                if (event.target.closest("a, button, input, select, textarea, label")) {
+                if (event.target.closest("a, button, input, select, textarea, label, form")) {
                     return;
                 }
 
@@ -233,7 +281,7 @@
                     return;
                 }
 
-                if (event.target.closest("a, button, input, select, textarea, label")) {
+                if (event.target.closest("a, button, input, select, textarea, label, form")) {
                     return;
                 }
 
@@ -253,6 +301,8 @@
         initNotifications();
         initGlobalSearch();
         initDemoLoginFill();
+        initPasswordToggles();
+        initToasts();
         initClickableRows();
     });
 })();

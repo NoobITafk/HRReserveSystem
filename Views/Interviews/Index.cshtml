@@ -4,37 +4,38 @@
     ViewData["Title"] = "Співбесіди";
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">Співбесіди</h1>
-        <p class="text-muted mb-0">Історія та план HR, технічних і фінальних співбесід із відповідальним рекрутером.</p>
+        <span class="section-eyebrow">Розклад зустрічей</span>
+        <h1 class="h2 fw-bold mb-1">Співбесіди <span class="badge-soft badge-soft-slate font-monospace ms-1">@Model.Count()</span></h1>
+        <p class="text-muted mb-0">Історія та розклад HR, технічних і фінальних співбесід із відповідальними рекрутерами.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-outline-primary" asp-action="Calendar">Календар</a>
+        <a class="btn btn-outline-primary" asp-action="Calendar">Календар зустрічей</a>
         <a class="btn btn-outline-secondary" asp-action="ExportIcs">Експорт .ics</a>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {
-            <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Запланувати співбесіду</a>
+            <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Запланувати співбесіду</a>
         }
     </div>
 </div>
 
-<form asp-action="Index" method="get" class="card mb-3">
+<form asp-action="Index" method="get" class="card mb-4">
     <div class="card-body row g-3 align-items-end">
-        <div class="col-sm-6 col-lg-3">
-            <label class="form-label" for="interviewType">Тип</label>
+        <div class="col-sm-6 col-lg-4">
+            <label class="form-label fw-medium" for="interviewType">Тип співбесіди</label>
             <select id="interviewType" class="form-select" name="interviewType" asp-items="ViewBag.InterviewTypes">
                 <option value="">Усі типи</option>
             </select>
         </div>
-        <div class="col-sm-6 col-lg-3">
-            <label class="form-label" for="result">Результат</label>
+        <div class="col-sm-6 col-lg-4">
+            <label class="form-label fw-medium" for="result">Результат</label>
             <select id="result" class="form-select" name="result" asp-items="ViewBag.Results">
                 <option value="">Усі результати</option>
             </select>
         </div>
-        <div class="col-sm-6 col-lg-3 d-flex gap-2">
-            <button class="btn btn-outline-primary flex-fill" type="submit">Фільтрувати</button>
+        <div class="col-sm-12 col-lg-4 d-flex gap-2">
+            <button class="btn btn-primary flex-fill" type="submit">Фільтрувати</button>
             <a class="btn btn-outline-secondary" asp-action="Index">Скинути</a>
         </div>
     </div>
@@ -44,14 +45,14 @@
     @if (Model.Any())
     {
         <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Кандидат</th>
                         <th>Вакансія</th>
-                        <th>Рекрутер</th>
-                        <th>Дата</th>
-                        <th>Тип</th>
+                        <th>Відповідальний</th>
+                        <th>Дата та час</th>
+                        <th>Етап</th>
                         <th>Результат</th>
                         <th class="text-end">Дії</th>
                     </tr>
@@ -59,23 +60,18 @@
                 <tbody>
                 @foreach (var item in Model)
                 {
-                    var badgeClass = HrOptions.InterviewResultBadge(item.Result);
-
                     <tr class="clickable-row" data-row-link="@Url.Action("Details", new { id = item.Id })" tabindex="0">
-                        <td>@item.Application?.Candidate?.FullName</td>
+                        <td class="fw-semibold">@item.Application?.Candidate?.FullName</td>
                         <td>@item.Application?.Vacancy?.Title</td>
                         <td>@(item.Recruiter?.FullName ?? "Не призначено")</td>
-                        <td>@item.InterviewDate.ToString("g")</td>
-                        <td>@item.InterviewType</td>
-                        <td><span class="badge @badgeClass">@item.Result</span></td>
+                        <td class="font-monospace small">@item.InterviewDate.ToString("dd.MM.yyyy HH:mm")</td>
+                        <td><span class="badge-soft badge-soft-slate">@HrOptions.InterviewTypeLabel(item.InterviewType)</span></td>
+                        <td><span class="@HrOptions.InterviewResultBadge(item.Result)">@HrOptions.InterviewResultLabel(item.Result)</span></td>
                         <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
                             @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
                             {
-                                <a class="btn btn-sm btn-warning" asp-action="Edit" asp-route-id="@item.Id"><span aria-hidden="true">E</span> Редагувати</a>
-                            }
-                            <a class="btn btn-sm btn-outline-info" asp-action="Details" asp-route-id="@item.Id"><span aria-hidden="true">i</span> Деталі</a>
-                            @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
-                            {
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
                                 <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Видалити</a>
                             }
                         </td>
@@ -88,11 +84,11 @@
     else
     {
         <div class="empty-state">
-            <h2 class="h5">Дані відсутні</h2>
-            <p class="text-muted mb-3">Натисніть кнопку «Додати», щоб створити перший запис.</p>
+            <h2 class="h5 fw-bold">Запланованих співбесід немає</h2>
+            <p class="text-muted mb-3">Оберіть інші фільтри або заплануйте нову зустріч із кандидатом.</p>
             @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
             {
-                <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Запланувати співбесіду</a>
+                <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Запланувати співбесіду</a>
             }
         </div>
     }

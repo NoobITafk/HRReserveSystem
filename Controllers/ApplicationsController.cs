@@ -165,6 +165,31 @@ public class ApplicationsController(ApplicationDbContext context) : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateStatus(int id, string status, string? returnStatusFilter = null)
+    {
+        if (!HrOptions.ApplicationStatuses.Contains(status))
+        {
+            TempData["ErrorMessage"] = "Обрано некоректний статус заявки.";
+            return RedirectToAction(nameof(Index), new { status = returnStatusFilter });
+        }
+
+        var application = await context.Applications
+            .Include(a => a.Candidate)
+            .FirstOrDefaultAsync(a => a.Id == id);
+        if (application is null)
+        {
+            return NotFound();
+        }
+
+        application.Status = status;
+        await context.SaveChangesAsync();
+
+        TempData["SuccessMessage"] = $"Статус заявки для «{application.Candidate?.FullName}» змінено на «{HrOptions.ApplicationStatusLabel(status)}».";
+        return RedirectToAction(nameof(Index), new { status = returnStatusFilter });
+    }
+
     private async Task PopulateSelectLists(int? candidateId = null, int? vacancyId = null)
     {
         var candidates = await context.Candidates

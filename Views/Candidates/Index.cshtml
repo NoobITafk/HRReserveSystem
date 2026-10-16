@@ -3,12 +3,14 @@
 @{
     ViewData["Title"] = "Кандидати";
     var showHidden = ViewData["ShowHidden"] as bool? == true;
+    var totalCount = Model.Count();
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">Кандидати</h1>
-        <p class="text-muted mb-0">База кадрового резерву з контактами, навичками та досвідом.</p>
+        <span class="section-eyebrow">Кадровий резерв</span>
+        <h1 class="h2 fw-bold mb-1">База кандидатів <span class="badge-soft badge-soft-slate font-monospace ms-1">@totalCount</span></h1>
+        <p class="text-muted mb-0">Управління профілями фахівців, резюме, ключовими навичками та досвідом роботи.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
         @if (showHidden)
@@ -19,28 +21,27 @@
         {
             <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showHidden="true">Приховані кандидати</a>
         }
-        <a class="btn btn-outline-primary" asp-action="ExportCsv" asp-route-search="@ViewData["CurrentFilter"]" asp-route-minExperience="@ViewData["MinExperience"]" title="Завантажити поточний список кандидатів з урахуванням пошуку і фільтра">Експорт у Excel/CSV</a>
-        <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
+        <a class="btn btn-outline-primary" asp-action="ExportCsv" asp-route-search="@ViewData["CurrentFilter"]" asp-route-minExperience="@ViewData["MinExperience"]" title="Завантажити поточний список кандидатів у форматі CSV">
+            Експорт у Excel/CSV
+        </a>
+        <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
     </div>
 </div>
 
-<form asp-action="Index" method="get" class="card mb-3">
+<form asp-action="Index" method="get" class="card mb-4">
     <div class="card-body row g-3 align-items-end">
         <input type="hidden" name="showHidden" value="@showHidden.ToString().ToLowerInvariant()" />
         <div class="col-lg-6">
-            <label class="form-label" for="candidateSearch">Пошук</label>
-            <input id="candidateSearch" class="form-control" type="search" name="search" value="@ViewData["CurrentFilter"]" placeholder="ПІБ, email або навички" />
+            <label class="form-label fw-medium" for="candidateSearch">Пошук за іменем, поштою або технологіями</label>
+            <input id="candidateSearch" class="form-control" type="search" name="search" value="@ViewData["CurrentFilter"]" placeholder="Наприклад: C#, SQL, Олена Коваль..." />
         </div>
         <div class="col-sm-6 col-lg-3">
-            <label class="form-label" for="minExperience">Мінімальний досвід</label>
-            <input id="minExperience" class="form-control" type="number" min="0" name="minExperience" value="@ViewData["MinExperience"]" placeholder="0" />
+            <label class="form-label fw-medium" for="minExperience">Мінімальний досвід (років)</label>
+            <input id="minExperience" class="form-control font-monospace" type="number" min="0" name="minExperience" value="@ViewData["MinExperience"]" placeholder="0" />
         </div>
         <div class="col-sm-6 col-lg-3 d-flex gap-2">
-            <button class="btn btn-outline-primary flex-fill" type="submit">Фільтрувати</button>
+            <button class="btn btn-primary flex-fill" type="submit">Фільтрувати</button>
             <a class="btn btn-outline-secondary" asp-action="Index">Скинути</a>
-        </div>
-        <div class="col-12">
-            <div class="form-text">Експорт у Excel/CSV завантажує саме той список, який зараз відфільтрований на сторінці.</div>
         </div>
     </div>
 </form>
@@ -49,28 +50,63 @@
     @if (Model.Any())
     {
         <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>ПІБ</th>
-                        <th>Електронна пошта</th>
-                        <th>Телефон</th>
-                        <th>Навички</th>
+                        <th>Фахівець</th>
+                        <th>Контакти</th>
+                        <th>Ключові навички</th>
                         <th>Досвід</th>
+                        <th>Резюме</th>
                         <th class="text-end">Дії</th>
                     </tr>
                 </thead>
                 <tbody>
                 @foreach (var item in Model)
                 {
+                    var initial = string.IsNullOrWhiteSpace(item.FullName) ? "К" : item.FullName.Trim()[0].ToString().ToUpperInvariant();
                     <tr class="clickable-row" data-row-link="@Url.Action("Details", new { id = item.Id })" tabindex="0">
-                        <td class="fw-semibold">@item.FullName</td>
-                        <td>@item.Email</td>
-                        <td>@item.Phone</td>
-                        <td>@item.Skills</td>
-                        <td><span class="badge text-bg-info text-dark">@item.ExperienceYears р.</span></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="profile-avatar" style="height:34px;min-width:34px;font-size:0.82rem;">@initial</span>
+                                <div>
+                                    <div class="fw-semibold">@item.FullName</div>
+                                    <small class="text-muted">Додано @item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>@item.Email</div>
+                            <small class="text-muted font-monospace">@item.Phone</small>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.Skills))
+                            {
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var skill in item.Skills.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(4))
+                                    {
+                                        <span class="badge-soft badge-soft-slate">@skill</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+                        <td><span class="badge-soft badge-soft-blue font-monospace">@item.ExperienceYears р.</span></td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.ResumeFilePath))
+                            {
+                                <span class="badge-soft badge-soft-emerald">Прикріплено</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">Немає файлу</span>
+                            }
+                        </td>
                         <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-outline-info" asp-action="Details" asp-route-id="@item.Id"><span aria-hidden="true">i</span> Деталі</a>
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">Досьє</a>
                             @if (showHidden)
                             {
                                 <form asp-action="Restore" asp-route-id="@item.Id" method="post" class="d-inline">
@@ -79,7 +115,7 @@
                             }
                             else
                             {
-                                <a class="btn btn-sm btn-warning" asp-action="Edit" asp-route-id="@item.Id"><span aria-hidden="true">E</span> Редагувати</a>
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
                                 <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Приховати</a>
                             }
                         </td>
@@ -92,11 +128,11 @@
     else
     {
         <div class="empty-state">
-            <h2 class="h5">Дані відсутні</h2>
-            <p class="text-muted mb-3">@(showHidden ? "Прихованих кандидатів немає." : "Натисніть кнопку «Додати», щоб створити перший запис.")</p>
+            <h2 class="h5 fw-bold">Кандидатів не знайдено</h2>
+            <p class="text-muted mb-3">@(showHidden ? "Прихованих кандидатів у базі наразі немає." : "Спробуйте змінити параметри пошуку або додайте нового кандидата до кадрового резерву.")</p>
             @if (!showHidden)
             {
-                <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
+                <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
             }
         </div>
     }

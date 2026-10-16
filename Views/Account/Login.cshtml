@@ -1,57 +1,181 @@
 @model HRReserveSystem.ViewModels.LoginViewModel
 
 @{
-    ViewData["Title"] = "Вхід";
+    ViewData["Title"] = "Вхід у систему";
     var demoUsers = ViewData["DemoUsers"] as IReadOnlyList<DemoUserViewModel> ?? [];
 }
 
-<div class="row justify-content-center">
-    <div class="col-md-8 col-lg-5">
-        <div class="card login-card">
-            <div class="card-body p-4">
-                <div class="mb-4">
-                    <span class="badge text-bg-primary mb-2">HR Reserve System</span>
-                    <h1 class="h3 mb-1">Вхід у систему</h1>
-                    <p class="text-muted mb-0">Увійдіть, щоб працювати з кадровим резервом.</p>
-                </div>
+<div class="auth-wrapper py-3 py-lg-5">
+    <div class="row justify-content-center align-items-stretch g-4 g-xl-5">
+        <div class="col-lg-6 d-none d-lg-flex flex-column justify-content-between">
+            <div class="auth-showcase p-4 p-xl-5 h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-inline-flex align-items-center gap-2 auth-pill mb-4">
+                        <span class="status-dot status-dot-emerald"></span>
+                        <span>HR Reserve Platform · Enterprise Edition</span>
+                    </div>
+                    <h1 class="display-6 fw-bold tracking-tight mb-3">
+                        Системне управління кадровим резервом та рекрутингом
+                    </h1>
+                    <p class="text-muted fs-6 mb-4 leading-relaxed">
+                        Єдиний простір для відбору талантів, проведення технічних і HR-співбесід, оцінювання Soft Skills та формування стратегічного кадрового резерву компанії.
+                    </p>
 
-                <form asp-action="Login" method="post" class="row g-3">
-                    <input type="hidden" asp-for="ReturnUrl" />
-                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-                    <div class="col-12">
-                        <label asp-for="Login" class="form-label"></label>
-                        <input asp-for="Login" class="form-control form-control-lg" autocomplete="username" />
-                        <span asp-validation-for="Login" class="text-danger"></span>
-                    </div>
-                    <div class="col-12">
-                        <label asp-for="Password" class="form-label"></label>
-                        <input asp-for="Password" class="form-control form-control-lg" autocomplete="current-password" />
-                        <span asp-validation-for="Password" class="text-danger"></span>
-                    </div>
-                    <div class="col-12">
-                        <div class="form-check">
-                            <input asp-for="RememberMe" class="form-check-input" />
-                            <label asp-for="RememberMe" class="form-check-label"></label>
+                    <div class="auth-feature-list d-flex flex-column gap-3 my-4">
+                        <div class="auth-feature-card">
+                            <div class="auth-feature-icon icon-blue">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </div>
+                            <div>
+                                <div class="fw-semibold mb-1">Розумна база кандидатів та резюме</div>
+                                <div class="text-muted small">Структуровані профілі, швидкий пошук за навичками, досвідом, безпечне зберігання PDF/DOCX резюме та миттєвий експорт у CSV.</div>
+                            </div>
+                        </div>
+
+                        <div class="auth-feature-card">
+                            <div class="auth-feature-icon icon-emerald">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </div>
+                            <div>
+                                <div class="fw-semibold mb-1">Прозорий пайплайн та календар співбесід</div>
+                                <div class="text-muted small">Контроль кожного етапу — від скринінгу до оффера, інтерактивний календар зустрічей та автоматичні email-сповіщення.</div>
+                            </div>
+                        </div>
+
+                        <div class="auth-feature-card">
+                            <div class="auth-feature-icon icon-amber">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            </div>
+                            <div>
+                                <div class="fw-semibold mb-1">Матриця Soft Skills та експертні відгуки</div>
+                                <div class="text-muted small">5-вимірна оцінка компетенцій кандидата та об'єктивні рекомендації інтерв'юерів за 10-бальною шкалою.</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-12">
-                        <button type="submit" class="btn btn-primary btn-lg w-100">Увійти</button>
-                    </div>
-                </form>
-
-                <div class="login-note mt-4">
-                    Нові користувачі створюються адміністратором у розділі «Рекрутери».
                 </div>
 
-                <div class="alert alert-light border mt-3 mb-0 demo-users-panel">
-                    <div class="fw-semibold mb-2">Демо-користувачі</div>
-                    @foreach (var user in demoUsers)
-                    {
-                        <button class="demo-user-row" type="button" data-demo-login="@user.Login" data-demo-password="@user.Password" aria-label="Заповнити @user.Login">
-                            <span><code>@user.Login</code> / <code>@user.Password</code></span>
-                            <span class="badge @HrOptions.RecruiterRoleBadge(user.Role)">@user.Role</span>
-                        </button>
-                    }
+                <div class="auth-metrics-strip pt-4 border-top d-flex justify-content-between gap-3">
+                    <div>
+                        <div class="fw-bold fs-5 font-monospace">3 ролі</div>
+                        <div class="text-muted small">Admin · Recruiter · Interviewer</div>
+                    </div>
+                    <div>
+                        <div class="fw-bold fs-5 font-monospace">7 етапів</div>
+                        <div class="text-muted small">Воронка відбору</div>
+                    </div>
+                    <div>
+                        <div class="fw-bold fs-5 font-monospace">5 критеріїв</div>
+                        <div class="text-muted small">Оцінка Soft Skills</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-10 col-lg-6 col-xl-5">
+            <div class="card auth-card border-0 h-100">
+                <div class="card-body p-4 p-xl-5 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="auth-tabs mb-4" role="tablist" aria-label="Перемикач авторизації">
+                            <a class="auth-tab active" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl">
+                                Вхід у систему
+                            </a>
+                            <a class="auth-tab" asp-controller="Account" asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl">
+                                Реєстрація
+                            </a>
+                        </div>
+
+                        <div class="mb-4">
+                            <h2 class="h3 fw-bold mb-1">З поверненням</h2>
+                            <p class="text-muted small mb-0">Увійдіть за допомогою облікового запису або оберіть демо-роль нижче.</p>
+                        </div>
+
+                        <form asp-action="Login" method="post" class="row g-3" id="loginForm">
+                            <input type="hidden" asp-for="ReturnUrl" />
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small mb-2"></div>
+
+                            <div class="col-12">
+                                <label asp-for="Login" class="form-label fw-medium">Логін або електронна пошта</label>
+                                <div class="input-icon-group">
+                                    <span class="input-icon" aria-hidden="true">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                    </span>
+                                    <input asp-for="Login" class="form-control form-control-lg" autocomplete="username" placeholder="Наприклад: recruiter або email@company.ua" />
+                                </div>
+                                <span asp-validation-for="Login" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Password" class="form-label fw-medium">Пароль</label>
+                                <div class="input-icon-group password-field-group">
+                                    <span class="input-icon" aria-hidden="true">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                    </span>
+                                    <input asp-for="Password" class="form-control form-control-lg pe-5" autocomplete="current-password" placeholder="Введіть ваш пароль" />
+                                    <button type="button" class="btn-password-toggle" data-password-toggle aria-label="Показати або приховати пароль" title="Показати/приховати пароль">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </button>
+                                </div>
+                                <span asp-validation-for="Password" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12 d-flex justify-content-between align-items-center">
+                                <div class="form-check">
+                                    <input asp-for="RememberMe" class="form-check-input" />
+                                    <label asp-for="RememberMe" class="form-check-label small text-muted">Запам'ятати сесію</label>
+                                </div>
+                                <a asp-action="Register" asp-route-returnUrl="@Model.ReturnUrl" class="small fw-medium text-decoration-none">Створити акаунт →</a>
+                            </div>
+
+                            <div class="col-12 pt-1">
+                                <button type="submit" class="btn btn-primary btn-lg w-100 fw-semibold">
+                                    Увійти в кабінет
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fw-semibold small text-uppercase tracking-wider text-muted">Миттєвий демо-вхід (1 клік)</span>
+                            <span class="badge-soft badge-soft-emerald">Готові акаунти</span>
+                        </div>
+                        <div class="d-grid gap-2">
+                            @foreach (var user in demoUsers)
+                            {
+                                var roleTitle = user.Role switch
+                                {
+                                    "Admin" => "Адміністратор системи",
+                                    "Recruiter" => "HR Рекрутер",
+                                    "Interviewer" => "Технічний Інтерв'юер",
+                                    _ => user.Role
+                                };
+                                var roleSub = user.Role switch
+                                {
+                                    "Admin" => "Повний доступ, аналітика, команда",
+                                    "Recruiter" => "Кандидати, вакансії, заявки, співбесіди",
+                                    "Interviewer" => "Оцінювання співбесід та Soft Skills",
+                                    _ => ""
+                                };
+                                <button class="demo-role-btn demo-autologin"
+                                        type="button"
+                                        data-demo-login="@user.Login"
+                                        data-demo-password="@user.Password"
+                                        data-autologin="true"
+                                        title="Миттєво увійти як @roleTitle">
+                                    <div class="text-start">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fw-semibold">@roleTitle</span>
+                                            <span class="@HrOptions.RecruiterRoleBadge(user.Role)">@HrOptions.RecruiterRoleLabel(user.Role)</span>
+                                        </div>
+                                        <div class="text-muted small mt-1">
+                                            <span>@roleSub</span> · <code class="font-monospace">@user.Login</code>
+                                        </div>
+                                    </div>
+                                    <span class="demo-enter-chip">Увійти →</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,19 +1,22 @@
 @{
-    ViewData["Title"] = "Access denied";
+    ViewData["Title"] = "Доступ обмежено";
 }
 
-<div class="row justify-content-center">
-    <div class="col-lg-7">
-        <div class="card border-warning">
-            <div class="card-body p-4">
-                <span class="badge text-bg-warning text-dark mb-3">403</span>
-                <h1 class="h3">Доступ обмежено</h1>
-                <p class="text-muted mb-4">Вашій ролі недостатньо прав для цієї операції.</p>
-                <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">На Dashboard</a>
-                    <form asp-controller="Account" asp-action="Logout" method="post">
-                        <button class="btn btn-outline-secondary" type="submit">Увійти під іншим користувачем</button>
-                    </form>
+<div class="row justify-content-center py-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card text-center p-4 p-md-5">
+            <div class="card-body">
+                <div class="empty-state-icon mx-auto mb-3 text-danger">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <span class="badge-soft badge-soft-rose mb-2">Помилка доступу · 403</span>
+                <h1 class="h3 fw-bold mb-2">Доступ до розділу обмежено</h1>
+                <p class="text-muted mb-4">
+                    Ваша поточна роль не має повноважень для перегляду або редагування цього розділу. Зверніться до адміністратора або увійдіть під відповідною роллю.
+                </p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a class="btn btn-primary" asp-controller="Home" asp-action="Index">На головну панель</a>
+                    <a class="btn btn-outline-secondary" asp-controller="Account" asp-action="Profile">Мій профіль</a>
                 </div>
             </div>
         </div>

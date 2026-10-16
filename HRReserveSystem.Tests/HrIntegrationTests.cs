@@ -707,6 +707,111 @@ public class HrIntegrationTests
         Assert.Contains("Junior .NET Developer", activeListHtml);
     }
 
+    [Fact]
+    public async Task Register_Page_Loads_And_Creates_New_Recruiter_With_AutoLogin()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var getResponse = await client.GetAsync("/Account/Register");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+
+        var registerResponse = await PostFormAsync(client, "/Account/Register", new Dictionary<string, string>
+        {
+            ["FullName"] = "Новий Рекрутер",
+            ["Email"] = "new.recruiter@company.ua",
+            ["Login"] = "new.recruiter",
+            ["Role"] = "Recruiter",
+            ["Password"] = "securePass123",
+            ["ConfirmPassword"] = "securePass123"
+        });
+
+        Assert.Equal(HttpStatusCode.Redirect, registerResponse.StatusCode);
+
+        var dashboardResponse = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, dashboardResponse.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.True(await db.Recruiters.AnyAsync(r => r.Login == "new.recruiter" && r.Role == "Recruiter"));
+    }
+
+    [Fact]
+    public async Task Register_Rejects_Admin_Role_Escalation_And_Duplicate_Login()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var roleEscalationResponse = await PostFormAsync(client, "/Account/Register", new Dictionary<string, string>
+        {
+            ["FullName"] = "Хакер Адмін",
+            ["Email"] = "hacker@company.ua",
+            ["Login"] = "hacker.admin",
+            ["Role"] = "Admin",
+            ["Password"] = "securePass123",
+            ["ConfirmPassword"] = "securePass123"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, roleEscalationResponse.StatusCode);
+
+        var duplicateLoginResponse = await PostFormAsync(client, "/Account/Register", new Dictionary<string, string>
+        {
+            ["FullName"] = "Дублікат Логіна",
+            ["Email"] = "unique.mail@company.ua",
+            ["Login"] = "admin",
+            ["Role"] = "Recruiter",
+            ["Password"] = "securePass123",
+            ["ConfirmPassword"] = "securePass123"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, duplicateLoginResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Profile_Page_Loads_And_Updates_Display_Name()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var profileResponse = await client.GetAsync("/Account/Profile");
+        Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
+
+        var updateResponse = await PostFormAsync(client, "/Account/Profile", new Dictionary<string, string>
+        {
+            ["Id"] = "2",
+            ["FullName"] = "Оновлений Рекрутер",
+            ["Email"] = "recruiter.updated@example.com"
+        });
+
+        Assert.Equal(HttpStatusCode.Redirect, updateResponse.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var recruiter = await db.Recruiters.FirstAsync(r => r.Login == "recruiter");
+        Assert.Equal("Оновлений Рекрутер", recruiter.FullName);
+    }
+
+    [Fact]
+    public async Task Application_Quick_Status_Update_Works()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var response = await PostFormAsync(client, "/Applications", "/Applications/UpdateStatus", new Dictionary<string, string>
+        {
+            ["id"] = "1",
+            ["status"] = "Offer"
+        });
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var app = await db.Applications.FirstAsync(a => a.Id == 1);
+        Assert.Equal("Offer", app.Status);
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

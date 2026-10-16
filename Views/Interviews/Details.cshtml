@@ -4,52 +4,77 @@
     ViewData["Title"] = "Деталі співбесіди";
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-    <h1 class="h2 mb-0">Співбесіда #@Model.Id</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="section-eyebrow">Зустріч #@Model.Id · @HrOptions.InterviewTypeLabel(Model.InterviewType)</span>
+        <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2">
+            <span>Співбесіда: @Model.Application?.Candidate?.FullName</span>
+            <span class="@HrOptions.InterviewResultBadge(Model.Result)">@HrOptions.InterviewResultLabel(Model.Result)</span>
+        </h1>
+        <div class="text-muted small">Вакансія: @Model.Application?.Vacancy?.Title</div>
+    </div>
     <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-outline-success" asp-controller="InterviewFeedbacks" asp-action="Create" asp-route-interviewId="@Model.Id"><span aria-hidden="true">+</span> Додати відгук</a>
+        <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create" asp-route-interviewId="@Model.Id"><span aria-hidden="true">+</span> Додати відгук</a>
         <a class="btn btn-outline-primary" asp-action="GoogleCalendar" asp-route-id="@Model.Id" target="_blank" rel="noopener">Google Calendar</a>
-        <a class="btn btn-outline-primary" asp-action="ExportIcs" asp-route-id="@Model.Id">Експорт .ics</a>
+        <a class="btn btn-outline-secondary" asp-action="ExportIcs" asp-route-id="@Model.Id">Експорт .ics</a>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {
-            <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
         }
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
     </div>
 </div>
 
 <div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Параметри зустрічі</h2>
+    </div>
     <div class="card-body">
-        <dl class="row mb-0">
-            <dt class="col-sm-3">Кандидат</dt>
-            <dd class="col-sm-9">@Model.Application?.Candidate?.FullName</dd>
-            <dt class="col-sm-3">Вакансія</dt>
-            <dd class="col-sm-9">@Model.Application?.Vacancy?.Title</dd>
-            <dt class="col-sm-3">Рекрутер</dt>
-            <dd class="col-sm-9">@(Model.Recruiter?.FullName ?? "Не призначено")</dd>
-            <dt class="col-sm-3">Дата</dt>
-            <dd class="col-sm-9">@Model.InterviewDate.ToString("g")</dd>
-            <dt class="col-sm-3">Тип</dt>
-            <dd class="col-sm-9">@Model.InterviewType</dd>
-            <dt class="col-sm-3">Результат</dt>
-            <dd class="col-sm-9"><span class="badge @HrOptions.InterviewResultBadge(Model.Result)">@Model.Result</span></dd>
-            <dt class="col-sm-3">Нотатки</dt>
-            <dd class="col-sm-9">@Model.Notes</dd>
+        <dl class="detail-list">
+            <div class="detail-row">
+                <dt>Кандидат</dt>
+                <dd>@Model.Application?.Candidate?.FullName</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Вакансія</dt>
+                <dd>@Model.Application?.Vacancy?.Title</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Відповідальний рекрутер / інтерв'юер</dt>
+                <dd>@(Model.Recruiter?.FullName ?? "Не призначено")</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Дата та час</dt>
+                <dd class="font-monospace">@Model.InterviewDate.ToString("dd.MM.yyyy HH:mm")</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Етап інтерв'ю</dt>
+                <dd><span class="badge-soft badge-soft-slate">@HrOptions.InterviewTypeLabel(Model.InterviewType)</span></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Статус / Результат</dt>
+                <dd><span class="@HrOptions.InterviewResultBadge(Model.Result)">@HrOptions.InterviewResultLabel(Model.Result)</span></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Нотатки до зустрічі</dt>
+                <dd>@(string.IsNullOrWhiteSpace(Model.Notes) ? "Нотатки відсутні" : Model.Notes)</dd>
+            </div>
         </dl>
     </div>
 </div>
 
 <div class="card">
-    <div class="card-header bg-white">
-        <h2 class="h5 mb-0">Відгуки</h2>
+    <div class="card-header">
+        <h2 class="h5 mb-0">Відгуки інтерв'юерів</h2>
+        <span class="badge-soft badge-soft-slate font-monospace">@Model.Feedbacks.Count</span>
     </div>
     @if (Model.Feedbacks.Any())
     {
         <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Автор</th>
+                        <th>Інтерв'юер</th>
                         <th>Оцінка</th>
                         <th>Рекомендація</th>
                         <th>Коментар</th>
@@ -59,9 +84,9 @@
                 @foreach (var feedback in Model.Feedbacks)
                 {
                     <tr>
-                        <td>@(feedback.Recruiter?.FullName ?? "Не вказано")</td>
-                        <td><span class="badge text-bg-info text-dark">@feedback.Score/10</span></td>
-                        <td><span class="badge @HrOptions.FeedbackRecommendationBadge(feedback.Recommendation)">@feedback.Recommendation</span></td>
+                        <td class="fw-semibold">@(feedback.Recruiter?.FullName ?? "Не вказано")</td>
+                        <td><span class="badge-soft badge-soft-blue font-monospace">@feedback.Score / 10</span></td>
+                        <td><span class="@HrOptions.FeedbackRecommendationBadge(feedback.Recommendation)">@HrOptions.FeedbackRecommendationLabel(feedback.Recommendation)</span></td>
                         <td>@feedback.Comment</td>
                     </tr>
                 }
@@ -71,6 +96,6 @@
     }
     else
     {
-        <div class="empty-state">Відгуків для цієї співбесіди ще немає.</div>
+        <div class="empty-state">Відгуків для цієї співбесіди ще не додано.</div>
     }
 </div>

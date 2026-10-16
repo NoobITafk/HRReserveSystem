@@ -1,61 +1,75 @@
 @model IEnumerable<HRReserveSystem.Models.Application>
 
 @{
-    ViewData["Title"] = "Заявки";
+    ViewData["Title"] = "Заявки (Пайплайн)";
+    var currentStatus = ViewData["StatusFilter"] as string;
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">Заявки</h1>
-        <p class="text-muted mb-0">Етапи відбору кандидатів на конкретні вакансії.</p>
+        <span class="section-eyebrow">Воронка рекрутингу</span>
+        <h1 class="h2 fw-bold mb-1">Заявки кандидатів <span class="badge-soft badge-soft-slate font-monospace ms-1">@Model.Count()</span></h1>
+        <p class="text-muted mb-0">Відстеження етапів проходження кандидатів від первинного скринінгу до оффера.</p>
     </div>
-    <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Створити заявку</a>
+    <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Створити заявку</a>
 </div>
 
-<form asp-action="Index" method="get" class="card mb-3">
-    <div class="card-body row g-3 align-items-end">
-        <div class="col-sm-6 col-lg-4">
-            <label class="form-label" for="status">Статус відбору</label>
-            <select id="status" class="form-select" name="status" asp-items="ViewBag.Statuses">
-                <option value="">Усі статуси</option>
-            </select>
-        </div>
-        <div class="col-sm-6 col-lg-3 d-flex gap-2">
-            <button class="btn btn-outline-primary flex-fill" type="submit">Фільтрувати</button>
-            <a class="btn btn-outline-secondary" asp-action="Index">Скинути</a>
-        </div>
-    </div>
-</form>
+<div class="pipeline-strip mb-4" role="navigation" aria-label="Фільтр за етапами пайплайну">
+    <a class="pipeline-pill @(string.IsNullOrEmpty(currentStatus) ? "active" : "")" asp-action="Index">
+        <span>Усі етапи</span>
+    </a>
+    @foreach (var status in HrOptions.ApplicationStatuses)
+    {
+        <a class="pipeline-pill @(currentStatus == status ? "active" : "")" asp-action="Index" asp-route-status="@status">
+            <span>@HrOptions.ApplicationStatusLabel(status)</span>
+        </a>
+    }
+</div>
 
 <div class="card">
     @if (Model.Any())
     {
         <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Кандидат</th>
                         <th>Вакансія</th>
-                        <th>Статус</th>
-                        <th>Коментар</th>
-                        <th>Дата подачі</th>
+                        <th>Поточний етап</th>
+                        <th>Швидка зміна етапу</th>
+                        <th>Коментар рекрутера</th>
+                        <th>Подано</th>
                         <th class="text-end">Дії</th>
                     </tr>
                 </thead>
                 <tbody>
                 @foreach (var item in Model)
                 {
-                    var badgeClass = HrOptions.ApplicationStatusBadge(item.Status);
-
                     <tr class="clickable-row" data-row-link="@Url.Action("Details", new { id = item.Id })" tabindex="0">
-                        <td>@item.Candidate?.FullName</td>
+                        <td class="fw-semibold">@item.Candidate?.FullName</td>
                         <td>@item.Vacancy?.Title</td>
-                        <td><span class="badge @badgeClass">@item.Status</span></td>
-                        <td class="table-comment-cell">@(string.IsNullOrWhiteSpace(item.RecruiterComment) ? "—" : item.RecruiterComment)</td>
-                        <td>@item.AppliedAt.ToLocalTime().ToString("g")</td>
+                        <td>
+                            <span class="@HrOptions.ApplicationStatusBadge(item.Status)">
+                                @HrOptions.ApplicationStatusLabel(item.Status)
+                            </span>
+                        </td>
+                        <td>
+                            <form asp-action="UpdateStatus" method="post" class="d-inline-flex align-items-center gap-1">
+                                <input type="hidden" name="id" value="@item.Id" />
+                                <input type="hidden" name="returnStatusFilter" value="@currentStatus" />
+                                <select name="status" class="form-select form-select-sm" style="min-width: 150px;" onchange="this.form.submit()" aria-label="Змінити етап заявки">
+                                    @foreach (var st in HrOptions.ApplicationStatuses)
+                                    {
+                                        <option value="@st" selected="@(st == item.Status)">@HrOptions.ApplicationStatusLabel(st)</option>
+                                    }
+                                </select>
+                            </form>
+                        </td>
+                        <td class="table-comment-cell text-muted small">@(string.IsNullOrWhiteSpace(item.RecruiterComment) ? "—" : item.RecruiterComment)</td>
+                        <td class="font-monospace small text-muted">@item.AppliedAt.ToLocalTime().ToString("dd.MM.yyyy")</td>
                         <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-warning" asp-action="Edit" asp-route-id="@item.Id"><span aria-hidden="true">E</span> Редагувати</a>
-                            <a class="btn btn-sm btn-outline-info" asp-action="Details" asp-route-id="@item.Id"><span aria-hidden="true">i</span> Деталі</a>
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
+                            <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
                             <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Видалити</a>
                         </td>
                     </tr>
@@ -67,9 +81,9 @@
     else
     {
         <div class="empty-state">
-            <h2 class="h5">Дані відсутні</h2>
-            <p class="text-muted mb-3">Натисніть кнопку «Додати», щоб створити перший запис.</p>
-            <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Створити заявку</a>
+            <h2 class="h5 fw-bold">Заявки на цьому етапі відсутні</h2>
+            <p class="text-muted mb-3">Оберіть інший етап воронки або подайте кандидата на відкриту вакансію.</p>
+            <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Створити заявку</a>
         </div>
     }
 </div>

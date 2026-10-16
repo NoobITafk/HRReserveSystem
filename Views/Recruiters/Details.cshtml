@@ -1,28 +1,45 @@
 @model Recruiter
 
 @{
-    ViewData["Title"] = "Деталі рекрутера";
+    ViewData["Title"] = "Профіль співробітника";
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-    <h1 class="h2 mb-0">@Model.FullName</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="section-eyebrow">Співробітник #@Model.Id</span>
+        <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2">
+            <span>@Model.FullName</span>
+            <span class="@HrOptions.RecruiterRoleBadge(Model.Role)">@HrOptions.RecruiterRoleLabel(Model.Role)</span>
+        </h1>
+    </div>
     <div class="d-flex gap-2">
-        <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
+        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
     </div>
 </div>
 
 <div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Облікові дані</h2>
+    </div>
     <div class="card-body">
-        <dl class="row mb-0">
-            <dt class="col-sm-3">Електронна пошта</dt>
-            <dd class="col-sm-9">@Model.Email</dd>
-            <dt class="col-sm-3">Логін</dt>
-            <dd class="col-sm-9"><code>@Model.Login</code></dd>
-            <dt class="col-sm-3">Роль</dt>
-            <dd class="col-sm-9"><span class="badge @HrOptions.RecruiterRoleBadge(Model.Role)">@Model.Role</span></dd>
-            <dt class="col-sm-3">Створено</dt>
-            <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
+        <dl class="detail-list">
+            <div class="detail-row">
+                <dt>Електронна пошта</dt>
+                <dd>@Model.Email</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Логін</dt>
+                <dd><code class="font-monospace">@Model.Login</code></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Роль у системі</dt>
+                <dd><span class="@HrOptions.RecruiterRoleBadge(Model.Role)">@HrOptions.RecruiterRoleLabel(Model.Role)</span></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Дата реєстрації</dt>
+                <dd class="font-monospace">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+            </div>
         </dl>
     </div>
 </div>
@@ -31,16 +48,16 @@
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-body">
-                <div class="text-muted small text-uppercase">Співбесіди</div>
-                <div class="display-6 fw-semibold">@Model.Interviews.Count</div>
+                <div class="text-muted small text-uppercase">Призначені співбесіди</div>
+                <div class="display-6 fw-bold font-monospace">@Model.Interviews.Count</div>
             </div>
         </div>
     </div>
     <div class="col-md-6">
         <div class="card h-100">
             <div class="card-body">
-                <div class="text-muted small text-uppercase">Відгуки</div>
-                <div class="display-6 fw-semibold">@Model.Feedbacks.Count</div>
+                <div class="text-muted small text-uppercase">Надані експертні відгуки</div>
+                <div class="display-6 fw-bold font-monospace">@Model.Feedbacks.Count</div>
             </div>
         </div>
     </div>

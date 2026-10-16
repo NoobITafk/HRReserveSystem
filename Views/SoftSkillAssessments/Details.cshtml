@@ -1,30 +1,66 @@
 @model SoftSkillAssessment
 
 @{
-    ViewData["Title"] = "Деталі soft skills";
+    ViewData["Title"] = "Деталі оцінки Soft Skills";
+    var competencies = new (string Label, int Score)[]
+    {
+        ("Комунікація та аргументація", Model.Communication),
+        ("Командна взаємодія", Model.Teamwork),
+        ("Відповідальність та автономність", Model.Responsibility),
+        ("Стресостійкість та адаптивність", Model.StressResistance),
+        ("Лідерський потенціал", Model.Leadership)
+    };
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h2 mb-0">@Model.Candidate?.FullName</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="section-eyebrow">Профіль компетенцій #@Model.Id</span>
+        <h1 class="h2 fw-bold mb-1">@Model.Candidate?.FullName</h1>
+        <div class="text-muted small">Інтегральний показник Soft Skills: <strong class="font-monospace">@Model.AverageScore / 10</strong></div>
+    </div>
     <div class="d-flex gap-2">
-        <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
+        <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
     </div>
 </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Комунікація</dt>
-    <dd class="col-sm-9"><span class="score-badge">@Model.Communication</span> <span class="text-muted">/ 10</span></dd>
-    <dt class="col-sm-3">Командна робота</dt>
-    <dd class="col-sm-9"><span class="score-badge">@Model.Teamwork</span> <span class="text-muted">/ 10</span></dd>
-    <dt class="col-sm-3">Відповідальність</dt>
-    <dd class="col-sm-9"><span class="score-badge">@Model.Responsibility</span> <span class="text-muted">/ 10</span></dd>
-    <dt class="col-sm-3">Стресостійкість</dt>
-    <dd class="col-sm-9"><span class="score-badge">@Model.StressResistance</span> <span class="text-muted">/ 10</span></dd>
-    <dt class="col-sm-3">Лідерство</dt>
-    <dd class="col-sm-9"><span class="score-badge">@Model.Leadership</span> <span class="text-muted">/ 10</span></dd>
-    <dt class="col-sm-3">Середній бал</dt>
-    <dd class="col-sm-9"><span class="score-badge score-badge-average">@Model.AverageScore</span> <span class="text-muted">/ 10</span></dd>
-    <dt class="col-sm-3">Коментар</dt>
-    <dd class="col-sm-9">@Model.OverallComment</dd>
-</dl>
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Шкала компетенцій (1–10)</h2>
+                <span class="score-badge score-badge-average font-monospace">@Model.AverageScore / 10</span>
+            </div>
+            <div class="card-body">
+                @foreach (var item in competencies)
+                {
+                    <div class="competency-row">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-medium">@item.Label</span>
+                            <span class="font-monospace fw-bold">@item.Score / 10</span>
+                        </div>
+                        <div class="competency-track">
+                            <div class="competency-fill" style="width: @(item.Score * 10)%"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Експертний висновок</h2>
+            </div>
+            <div class="card-body">
+                <div class="p-3 rounded-3 surface-subtle border mb-3">
+                    @(string.IsNullOrWhiteSpace(Model.OverallComment) ? "Коментар не вказано." : Model.OverallComment)
+                </div>
+                <div class="text-muted small">
+                    Середній бал розраховується автоматично як середнє арифметичне за 5 ключовими вимірами.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,19 +1,22 @@
 <!DOCTYPE html>
-<html lang="uk" data-theme="dark">
+<html lang="uk" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - HR Reserve System</title>
+    <title>@ViewData["Title"] — HR Reserve System</title>
     <script>
         (function () {
             try {
                 var savedTheme = localStorage.getItem("hrreserve-theme");
-                document.documentElement.setAttribute("data-theme", savedTheme === "light" ? "light" : "dark");
+                document.documentElement.setAttribute("data-theme", savedTheme === "dark" ? "dark" : "light");
             } catch (error) {
-                document.documentElement.setAttribute("data-theme", "dark");
+                document.documentElement.setAttribute("data-theme", "light");
             }
         })();
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/HRReserveSystem.styles.css" asp-append-version="true" />
@@ -28,30 +31,36 @@
     var displayName = User.FindFirst("DisplayName")?.Value ?? User.Identity?.Name ?? "Користувач";
     var displayInitial = string.IsNullOrWhiteSpace(displayName) ? "H" : displayName.Trim()[0].ToString().ToUpperInvariant();
     var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+    var roleLabel = HrOptions.RecruiterRoleLabel(role);
     var shellClass = isAuthenticated ? "has-auth-shell" : "public-shell";
+    var successMessage = TempData["SuccessMessage"] as string ?? TempData["ResumeMessage"] as string;
+    var errorMessage = TempData["ErrorMessage"] as string ?? TempData["ResumeError"] as string;
     Func<string, string, string> activeClass = (controller, action) =>
         currentController == controller && (string.IsNullOrEmpty(action) || currentAction == action) ? "active" : "";
 }
-<body data-theme="dark" class="@shellClass">
+<body data-theme="light" class="@shellClass">
     <div class="app-shell">
         @if (isAuthenticated)
         {
             <aside class="app-sidebar d-none d-lg-flex" aria-label="Основна навігація">
                 <a class="sidebar-brand" asp-area="" asp-controller="Home" asp-action="Index">
                     <span class="sidebar-logo" aria-hidden="true">HR</span>
-                    <span>
+                    <span class="sidebar-brand-copy">
                         <strong>HR Reserve</strong>
-                        <small>Кадровий резерв</small>
+                        <small>Talent &amp; Pipeline</small>
                     </span>
                 </a>
 
                 <nav class="sidebar-nav">
+                    <div class="sidebar-section-label">Огляд</div>
                     <a class="sidebar-link @(activeClass("Home", "Index"))" asp-area="" asp-controller="Home" asp-action="Index">
                         <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></svg></span>
-                        <span>Dashboard</span>
+                        <span>Панель керування</span>
                     </a>
+
                     @if (canRecruit)
                     {
+                        <div class="sidebar-section-label">Рекрутинг</div>
                         <a class="sidebar-link @(activeClass("Candidates", ""))" asp-area="" asp-controller="Candidates" asp-action="Index">
                             <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" /></svg></span>
                             <span>Кандидати</span>
@@ -62,31 +71,43 @@
                         </a>
                         <a class="sidebar-link @(activeClass("Applications", ""))" asp-area="" asp-controller="Applications" asp-action="Index">
                             <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M9 13h6M9 17h6" /></svg></span>
-                            <span>Заявки</span>
+                            <span>Заявки (Пайплайн)</span>
                         </a>
                     }
-                    <a class="sidebar-link @(activeClass("Interviews", ""))" asp-area="" asp-controller="Interviews" asp-action="Index">
+
+                    <div class="sidebar-section-label">Оцінювання</div>
+                    <a class="sidebar-link @(currentController == "Interviews" && currentAction != "Calendar" ? "active" : "")" asp-area="" asp-controller="Interviews" asp-action="Index">
                         <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4v3m10-3v3M5 8h14M5 5h14v15H5zM8 12h3m3 0h2M8 16h5" /></svg></span>
                         <span>Співбесіди</span>
+                    </a>
+                    <a class="sidebar-link @(activeClass("Interviews", "Calendar"))" asp-area="" asp-controller="Interviews" asp-action="Calendar">
+                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+                        <span>Календар зустрічей</span>
                     </a>
                     @if (canInterview)
                     {
                         <a class="sidebar-link @(activeClass("InterviewFeedbacks", ""))" asp-area="" asp-controller="InterviewFeedbacks" asp-action="Index">
                             <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H8l-3 4V5Zm4 4h6m-6 4h4" /></svg></span>
-                            <span>Відгуки</span>
+                            <span>Відгуки інтерв'юерів</span>
                         </a>
                         <a class="sidebar-link @(activeClass("SoftSkillAssessments", ""))" asp-area="" asp-controller="SoftSkillAssessments" asp-action="Index">
                             <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z" /></svg></span>
-                            <span>Soft Skills</span>
+                            <span>Оцінка Soft Skills</span>
                         </a>
                     }
+
+                    <div class="sidebar-section-label">Система</div>
                     @if (isAdmin)
                     {
                         <a class="sidebar-link @(activeClass("Recruiters", ""))" asp-area="" asp-controller="Recruiters" asp-action="Index">
                             <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6-1a3 3 0 1 0 0-6M3 20a6 6 0 0 1 12 0m3 0a6 6 0 0 0-3-5.2" /></svg></span>
-                            <span>Рекрутери</span>
+                            <span>Команда рекрутерів</span>
                         </a>
                     }
+                    <a class="sidebar-link @(activeClass("Account", "Profile"))" asp-area="" asp-controller="Account" asp-action="Profile">
+                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+                        <span>Мій профіль</span>
+                    </a>
                     <a class="sidebar-link @(activeClass("Home", "About"))" asp-area="" asp-controller="Home" asp-action="About">
                         <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 17v-5m0-4h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" /></svg></span>
                         <span>Про систему</span>
@@ -94,15 +115,15 @@
                 </nav>
 
                 <div class="sidebar-footer">
-                    <div class="sidebar-profile">
+                    <a class="sidebar-profile text-decoration-none" asp-controller="Account" asp-action="Profile" title="Перейти до налаштувань профілю">
                         <div class="profile-avatar" aria-hidden="true">@displayInitial</div>
                         <div class="min-w-0">
-                            <div class="text-truncate fw-semibold">@displayName</div>
-                            <span class="badge @HrOptions.RecruiterRoleBadge(role)">@role</span>
+                            <div class="text-truncate fw-semibold sidebar-profile-name">@displayName</div>
+                            <span class="@HrOptions.RecruiterRoleBadge(role)">@roleLabel</span>
                         </div>
-                    </div>
+                    </a>
                     <form asp-controller="Account" asp-action="Logout" method="post">
-                        <button class="btn btn-outline-danger w-100" type="submit">Вийти</button>
+                        <button class="btn btn-outline-danger btn-sm w-100" type="submit">Вийти з акаунту</button>
                     </form>
                 </div>
             </aside>
@@ -114,20 +135,23 @@
                     @if (isAuthenticated)
                     {
                         <button class="btn btn-icon d-none d-lg-inline-flex" type="button" data-sidebar-toggle aria-expanded="true" aria-label="Згорнути меню">
-                            <span aria-hidden="true">☰</span>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                         </button>
                         <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu" aria-label="Відкрити меню">
-                            <span aria-hidden="true">☰</span>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                         </button>
                     }
-                    <a class="topbar-brand d-lg-none" asp-area="" asp-controller="Home" asp-action="Index">HR Reserve</a>
+                    <a class="topbar-brand @(isAuthenticated ? "d-lg-none" : "")" asp-area="" asp-controller="Home" asp-action="Index">
+                        <span class="sidebar-logo sidebar-logo-sm" aria-hidden="true">HR</span>
+                        <span>HR Reserve</span>
+                    </a>
                 </div>
 
                 @if (isAuthenticated && canRecruit)
                 {
                     <form class="topbar-search d-none d-xl-flex" role="search" asp-controller="Candidates" asp-action="Index" method="get" data-global-search>
                         <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" /></svg></span>
-                        <input type="search" class="form-control" name="search" placeholder="Пошук кандидата, вакансії або заявки" aria-label="Пошук" />
+                        <input type="search" class="form-control" name="search" placeholder="Пошук кандидата за ПІБ, email або навичками..." aria-label="Пошук" />
                     </form>
                 }
 
@@ -140,27 +164,24 @@
                                 <span class="notification-dot" data-notification-dot></span>
                             </button>
                             <div class="app-dropdown-menu notification-menu" data-dropdown-menu>
-                                <div class="dropdown-title">Повідомлення</div>
+                                <div class="dropdown-title">Центр сповіщень</div>
                                 <div class="notification-list" data-notification-list>
                                     <div class="notification-item">
-                                        <strong>Найближча співбесіда сьогодні</strong>
-                                        <span>Перевірте розклад у розділі співбесід.</span>
+                                        <strong>Календар співбесід активний</strong>
+                                        <span>Перевірте заплановані зустрічі у розділі співбесід.</span>
                                     </div>
                                     <div class="notification-item">
-                                        <strong>Додано нового кандидата</strong>
-                                        <span>Оновіть список кандидатів для перегляду.</span>
-                                    </div>
-                                    <div class="notification-item">
-                                        <strong>Є заявки зі статусом Interview</strong>
-                                        <span>Потрібна увага рекрутера або інтерв'юера.</span>
+                                        <strong>Кадровий резерв оновлено</strong>
+                                        <span>Усі зміни статусів синхронізовано з базою даних.</span>
                                     </div>
                                 </div>
                                 <div class="notification-empty d-none" data-notification-empty>Нових повідомлень немає</div>
                             </div>
                         </div>
                     }
-                    <button class="btn btn-sm btn-theme-toggle btn-theme-toggle-compact" type="button" data-theme-toggle aria-label="Перемкнути тему" aria-pressed="false">
+                    <button class="btn btn-sm btn-theme-toggle btn-theme-toggle-compact" type="button" data-theme-toggle aria-label="Перемкнути тему" aria-pressed="false" title="Перемкнути світлу/темну тему">
                         <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
+                        <span class="theme-toggle-text d-none d-sm-inline">Темна</span>
                     </button>
                     @if (isAuthenticated)
                     {
@@ -169,20 +190,23 @@
                                 <span class="profile-avatar topbar-avatar" aria-hidden="true">@displayInitial</span>
                                 <span class="profile-copy">
                                     <span class="profile-name">@displayName</span>
-                                    <span class="profile-role">@role</span>
+                                    <span class="profile-role">@roleLabel</span>
                                 </span>
                                 <span class="profile-caret" aria-hidden="true">⌄</span>
                             </button>
                             <div class="app-dropdown-menu profile-menu" data-dropdown-menu>
                                 <div class="profile-menu-head">
                                     <span class="profile-avatar" aria-hidden="true">@displayInitial</span>
-                                    <span>
-                                        <strong>@displayName</strong>
-                                        <small>@role</small>
+                                    <span class="min-w-0">
+                                        <strong class="text-truncate">@displayName</strong>
+                                        <small>@roleLabel</small>
                                     </span>
                                 </div>
+                                <a class="dropdown-item-soft text-decoration-none d-block mb-1" asp-controller="Account" asp-action="Profile">
+                                    Налаштування профілю
+                                </a>
                                 <form asp-controller="Account" asp-action="Logout" method="post">
-                                    <button class="dropdown-item-soft dropdown-item-danger w-100 text-start" type="submit">Вийти</button>
+                                    <button class="dropdown-item-soft dropdown-item-danger w-100 text-start" type="submit">Вийти з системи</button>
                                 </form>
                             </div>
                         </div>
@@ -190,18 +214,44 @@
                     else
                     {
                         <a class="btn btn-sm btn-outline-secondary" asp-controller="Home" asp-action="About">Про систему</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-controller="Account" asp-action="Register">Реєстрація</a>
                         <a class="btn btn-sm btn-primary" asp-controller="Account" asp-action="Login">Увійти</a>
                     }
                 </div>
             </header>
 
             <main role="main" class="container-fluid app-container app-main">
+                @if (!string.IsNullOrWhiteSpace(successMessage))
+                {
+                    <div class="app-toast app-toast-success mb-4" data-auto-dismiss="5000" role="status">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="toast-indicator">✓</span>
+                            <span>@successMessage</span>
+                        </div>
+                        <button type="button" class="btn-close-toast" data-toast-close aria-label="Закрити">✕</button>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="app-toast app-toast-danger mb-4" role="alert">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="toast-indicator">!</span>
+                            <span>@errorMessage</span>
+                        </div>
+                        <button type="button" class="btn-close-toast" data-toast-close aria-label="Закрити">✕</button>
+                    </div>
+                }
+
                 @RenderBody()
             </main>
 
             <footer class="border-top footer text-muted app-footer">
-                <div class="container-fluid app-container">
-                    &copy; 2026 - HR Reserve System - <a asp-area="" asp-controller="Home" asp-action="About">Про систему</a>
+                <div class="container-fluid app-container d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <span>&copy; 2026 HR Reserve System — Платформа кадрового резерву та рекрутингу</span>
+                    <div class="d-flex gap-3">
+                        <a asp-area="" asp-controller="Home" asp-action="About">Про систему</a>
+                        <a asp-area="" asp-controller="Home" asp-action="CourseMaterials">Архітектура</a>
+                    </div>
                 </div>
             </footer>
         </div>
@@ -212,8 +262,8 @@
         <div class="offcanvas offcanvas-start app-offcanvas" tabindex="-1" id="mobileMenu" aria-labelledby="mobileMenuLabel">
             <div class="offcanvas-header">
                 <div>
-                    <h2 class="offcanvas-title h5" id="mobileMenuLabel">HR Reserve</h2>
-                    <div class="small text-muted">@displayName · @role</div>
+                    <h2 class="offcanvas-title h5 mb-0" id="mobileMenuLabel">HR Reserve</h2>
+                    <div class="small text-muted">@displayName · @roleLabel</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Закрити"></button>
             </div>
@@ -221,7 +271,7 @@
                 <nav class="sidebar-nav flex-grow-1">
                     <a class="sidebar-link @(activeClass("Home", "Index"))" asp-area="" asp-controller="Home" asp-action="Index">
                         <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" /></svg></span>
-                        <span>Dashboard</span>
+                        <span>Панель керування</span>
                     </a>
                     @if (canRecruit)
                     {
@@ -260,13 +310,22 @@
                             <span>Рекрутери</span>
                         </a>
                     }
+                    <a class="sidebar-link @(activeClass("Account", "Profile"))" asp-area="" asp-controller="Account" asp-action="Profile">
+                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg></span>
+                        <span>Мій профіль</span>
+                    </a>
                     <a class="sidebar-link @(activeClass("Home", "About"))" asp-area="" asp-controller="Home" asp-action="About">
                         <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 17v-5m0-4h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" /></svg></span>
                         <span>Про систему</span>
                     </a>
+                    <a class="sidebar-link @(activeClass("Home", "CourseMaterials"))" asp-area="" asp-controller="Home" asp-action="CourseMaterials">
+                        <span class="sidebar-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg></span>
+                        <span>Архітектура</span>
+                    </a>
                 </nav>
                 <button class="btn btn-theme-toggle btn-theme-toggle-compact w-100 mb-2" type="button" data-theme-toggle aria-label="Перемкнути тему">
                     <span class="theme-toggle-icon" aria-hidden="true">🌙</span>
+                    <span class="theme-toggle-text">Темна</span>
                 </button>
                 <form asp-controller="Account" asp-action="Logout" method="post">
                     <button class="btn btn-outline-danger w-100" type="submit">Вийти</button>
@@ -303,7 +362,7 @@
             }
             <button type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileMenu" aria-controls="mobileMenu">
                 <span aria-hidden="true">⋯</span>
-                <small>Ще</small>
+                <small>Меню</small>
             </button>
         </nav>
     }

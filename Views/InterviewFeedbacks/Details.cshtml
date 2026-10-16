@@ -4,34 +4,61 @@
     ViewData["Title"] = "Деталі відгуку";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h2 mb-0">Відгук #@Model.Id</h1>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="section-eyebrow">Експертний відгук #@Model.Id</span>
+        <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2">
+            <span>@Model.Interview?.Application?.Candidate?.FullName</span>
+            <span class="@HrOptions.FeedbackRecommendationBadge(Model.Recommendation)">@HrOptions.FeedbackRecommendationLabel(Model.Recommendation)</span>
+        </h1>
+    </div>
     <div class="d-flex gap-2">
         @if (User.IsInRole("Admin") || User.IsInRole("Interviewer"))
         {
-            <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
         }
-        <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
+        <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
     </div>
 </div>
 
 <div class="card">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Висновок за результатами співбесіди</h2>
+        <span class="badge-soft badge-soft-blue font-monospace">@Model.Score / 10</span>
+    </div>
     <div class="card-body">
-        <dl class="row mb-0">
-            <dt class="col-sm-3">Кандидат</dt>
-            <dd class="col-sm-9">@Model.Interview?.Application?.Candidate?.FullName</dd>
-            <dt class="col-sm-3">Вакансія</dt>
-            <dd class="col-sm-9">@Model.Interview?.Application?.Vacancy?.Title</dd>
-            <dt class="col-sm-3">Автор відгуку</dt>
-            <dd class="col-sm-9">@(Model.Recruiter?.FullName ?? "Не вказано")</dd>
-            <dt class="col-sm-3">Оцінка</dt>
-            <dd class="col-sm-9">@Model.Score/10</dd>
-            <dt class="col-sm-3">Рекомендація</dt>
-            <dd class="col-sm-9"><span class="badge @HrOptions.FeedbackRecommendationBadge(Model.Recommendation)">@Model.Recommendation</span></dd>
-            <dt class="col-sm-3">Коментар</dt>
-            <dd class="col-sm-9">@Model.Comment</dd>
-            <dt class="col-sm-3">Створено</dt>
-            <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
+        <dl class="detail-list mb-4">
+            <div class="detail-row">
+                <dt>Кандидат</dt>
+                <dd>@Model.Interview?.Application?.Candidate?.FullName</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Вакансія</dt>
+                <dd>@Model.Interview?.Application?.Vacancy?.Title</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Інтерв'юер (Автор)</dt>
+                <dd>@(Model.Recruiter?.FullName ?? "Не вказано")</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Підсумкова оцінка</dt>
+                <dd class="font-monospace">@Model.Score / 10</dd>
+            </div>
+            <div class="detail-row">
+                <dt>Рекомендація</dt>
+                <dd><span class="@HrOptions.FeedbackRecommendationBadge(Model.Recommendation)">@HrOptions.FeedbackRecommendationLabel(Model.Recommendation)</span></dd>
+            </div>
+            <div class="detail-row">
+                <dt>Дата створення</dt>
+                <dd class="font-monospace">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+            </div>
         </dl>
+
+        <div>
+            <div class="small fw-semibold text-uppercase text-muted mb-2">Розгорнутий коментар</div>
+            <div class="p-3 rounded-3 surface-subtle border">
+                @Model.Comment
+            </div>
+        </div>
     </div>
 </div>

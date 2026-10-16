@@ -5,66 +5,119 @@
     var isArchived = Model.IsArchived;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">@Model.Title</h1>
-        <span class="badge @HrOptions.VacancyStatusBadge(Model.Status)">@Model.Status</span>
-        @if (isArchived)
-        {
-            <span class="badge text-bg-warning text-dark">Архівна вакансія</span>
-        }
+        <span class="section-eyebrow">Позиція #@Model.Id</span>
+        <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2">
+            <span>@Model.Title</span>
+            <span class="@HrOptions.VacancyStatusBadge(Model.Status)">@HrOptions.VacancyStatusLabel(Model.Status)</span>
+            @if (isArchived)
+            {
+                <span class="badge-soft badge-soft-amber">Архівна вакансія</span>
+            }
+        </h1>
+        <div class="text-muted small">Опубліковано @Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         @if (isArchived)
         {
             <form asp-action="Restore" asp-route-id="@Model.Id" method="post">
                 <button class="btn btn-outline-success" type="submit">Відновити</button>
             </form>
-            <a class="btn btn-secondary" asp-action="Index" asp-route-showArchived="true">Назад до архіву</a>
+            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showArchived="true">← Назад до архіву</a>
         }
         else
         {
-            <a class="btn btn-warning" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
-            <a class="btn btn-secondary" asp-action="Index">Назад до списку</a>
+            <a class="btn btn-primary" asp-controller="Applications" asp-action="Create">Подати кандидата</a>
+            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.Id">Редагувати</a>
+            <a class="btn btn-outline-secondary" asp-action="Index">← До списку</a>
         }
     </div>
 </div>
 
-<dl class="row">
-    <dt class="col-sm-3">Опис</dt>
-    <dd class="col-sm-9">@Model.Description</dd>
-    <dt class="col-sm-3">Вимоги</dt>
-    <dd class="col-sm-9">@Model.Requirements</dd>
-    <dt class="col-sm-3">Зарплата</dt>
-    <dd class="col-sm-9">@Model.SalaryMin - @Model.SalaryMax</dd>
-    <dt class="col-sm-3">Створено</dt>
-    <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
-</dl>
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Опис та вимоги до кандидата</h2>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <div class="small fw-semibold text-uppercase text-muted mb-2">Опис позиції</div>
+                    <div class="p-3 rounded-3 surface-subtle border">
+                        @(string.IsNullOrWhiteSpace(Model.Description) ? "Опис не вказано." : Model.Description)
+                    </div>
+                </div>
+                <div>
+                    <div class="small fw-semibold text-uppercase text-muted mb-2">Вимоги та стек</div>
+                    <div class="p-3 rounded-3 surface-subtle border">
+                        @(string.IsNullOrWhiteSpace(Model.Requirements) ? "Вимоги не вказано." : Model.Requirements)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<h2 class="h5 mt-4">Заявки на вакансію</h2>
-@if (Model.Applications.Any())
-{
-    <table class="table table-sm align-middle">
-        <thead>
-            <tr>
-                <th>Кандидат</th>
-                <th>Статус</th>
-                <th>Дата</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var application in Model.Applications)
-        {
-            <tr>
-                <td>@application.Candidate?.FullName</td>
-                <td><span class="badge @HrOptions.ApplicationStatusBadge(application.Status)">@application.Status</span></td>
-                <td>@application.AppliedAt.ToLocalTime().ToString("g")</td>
-            </tr>
-        }
-        </tbody>
-    </table>
-}
-else
-{
-    <div class="empty-state">На цю вакансію ще немає заявок.</div>
-}
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Умови та показники</h2>
+            </div>
+            <div class="card-body">
+                <dl class="detail-list">
+                    <div class="detail-row">
+                        <dt>Вилка винагороди</dt>
+                        <dd class="font-monospace">@Model.SalaryMin.ToString("N0") – @Model.SalaryMax.ToString("N0") грн</dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Поточний статус</dt>
+                        <dd><span class="@HrOptions.VacancyStatusBadge(Model.Status)">@HrOptions.VacancyStatusLabel(Model.Status)</span></dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Подано заявок</dt>
+                        <dd class="font-monospace">@Model.Applications.Count</dd>
+                    </div>
+                    <div class="detail-row">
+                        <dt>Дата створення</dt>
+                        <dd class="font-monospace">@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Кандидати на цю вакансію</h2>
+        <span class="badge-soft badge-soft-slate font-monospace">@Model.Applications.Count</span>
+    </div>
+    @if (Model.Applications.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Кандидат</th>
+                        <th>Етап відбору</th>
+                        <th>Дата подачі</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var application in Model.Applications)
+                {
+                    <tr>
+                        <td class="fw-semibold">@application.Candidate?.FullName</td>
+                        <td><span class="@HrOptions.ApplicationStatusBadge(application.Status)">@HrOptions.ApplicationStatusLabel(application.Status)</span></td>
+                        <td class="font-monospace small">@application.AppliedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">На цю вакансію ще не подано жодного кандидата.</div>
+    }
+</div>

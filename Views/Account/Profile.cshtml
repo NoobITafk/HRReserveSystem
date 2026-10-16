@@ -1,0 +1,132 @@
+@model HRReserveSystem.ViewModels.ProfileViewModel
+
+@{
+    ViewData["Title"] = "Мій профіль";
+    var initial = string.IsNullOrWhiteSpace(Model.FullName) ? "U" : Model.FullName.Trim()[0].ToString().ToUpperInvariant();
+}
+
+<div class="page-header mb-4">
+    <div>
+        <span class="section-eyebrow">Особистий кабінет</span>
+        <h1 class="h2 mb-1">Налаштування профілю</h1>
+        <p class="text-muted mb-0">Керування особистими даними, контактною поштою та безпекою облікового запису.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Index">← На головну</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+                <div>
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <div class="profile-avatar profile-avatar-lg">@initial</div>
+                        <div class="min-w-0">
+                            <h2 class="h5 fw-bold mb-1 text-truncate">@Model.FullName</h2>
+                            <span class="@HrOptions.RecruiterRoleBadge(Model.Role)">@HrOptions.RecruiterRoleLabel(Model.Role)</span>
+                        </div>
+                    </div>
+
+                    <dl class="detail-list mb-4">
+                        <div class="detail-row">
+                            <dt>Логін</dt>
+                            <dd class="font-monospace">@Model.Login</dd>
+                        </div>
+                        <div class="detail-row">
+                            <dt>Email</dt>
+                            <dd>@Model.Email</dd>
+                        </div>
+                        <div class="detail-row">
+                            <dt>У системі з</dt>
+                            <dd>@Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</dd>
+                        </div>
+                    </dl>
+                </div>
+
+                <div class="row g-2 pt-3 border-top">
+                    <div class="col-6">
+                        <div class="p-3 rounded-3 surface-subtle text-center">
+                            <div class="h4 fw-bold font-monospace mb-0">@Model.InterviewsCount</div>
+                            <div class="text-muted small">Співбесід</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-3 rounded-3 surface-subtle text-center">
+                            <div class="h4 fw-bold font-monospace mb-0">@Model.FeedbacksCount</div>
+                            <div class="text-muted small">Відгуків</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Редагування облікового запису</h2>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Profile" method="post" class="row g-3">
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 px-3 small"></div>
+
+                    <div class="col-md-6">
+                        <label asp-for="FullName" class="form-label fw-medium">ПІБ</label>
+                        <input asp-for="FullName" class="form-control" />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="Email" class="form-label fw-medium">Електронна пошта</label>
+                        <input asp-for="Email" class="form-control" type="email" />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-medium text-muted">Логін (незмінний)</label>
+                        <input value="@Model.Login" class="form-control font-monospace" disabled readonly />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-medium text-muted">Роль доступу</label>
+                        <input value="@HrOptions.RecruiterRoleLabel(Model.Role) (@Model.Role)" class="form-control" disabled readonly />
+                    </div>
+
+                    <div class="col-12 pt-3 mt-3 border-top">
+                        <h3 class="h6 fw-semibold mb-1">Зміна пароля (необов'язково)</h3>
+                        <p class="text-muted small mb-3">Залиште поля порожніми, якщо не плануєте змінювати поточний пароль.</p>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="CurrentPassword" class="form-label fw-medium">Поточний пароль</label>
+                        <input asp-for="CurrentPassword" class="form-control" autocomplete="current-password" placeholder="••••••••" />
+                        <span asp-validation-for="CurrentPassword" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="NewPassword" class="form-label fw-medium">Новий пароль</label>
+                        <input asp-for="NewPassword" class="form-control" autocomplete="new-password" placeholder="Мінімум 6 символів" />
+                        <span asp-validation-for="NewPassword" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label asp-for="ConfirmNewPassword" class="form-label fw-medium">Підтвердження</label>
+                        <input asp-for="ConfirmNewPassword" class="form-control" autocomplete="new-password" placeholder="Повторіть новий пароль" />
+                        <span asp-validation-for="ConfirmNewPassword" class="text-danger small"></span>
+                    </div>
+
+                    <div class="col-12 pt-3 d-flex gap-2 justify-content-end">
+                        <button type="submit" class="btn btn-primary px-4">Зберегти зміни</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

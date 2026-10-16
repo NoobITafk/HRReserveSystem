@@ -1,46 +1,51 @@
 @model IEnumerable<Recruiter>
 
 @{
-    ViewData["Title"] = "Рекрутери";
+    ViewData["Title"] = "Команда рекрутерів";
 }
 
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
-        <h1 class="h2 mb-1">Рекрутери</h1>
-        <p class="text-muted mb-0">Користувачі системи, ролі та відповідальні за співбесіди й відгуки.</p>
+        <span class="section-eyebrow">Адміністрування доступу</span>
+        <h1 class="h2 fw-bold mb-1">Команда рекрутерів та інтерв'юерів <span class="badge-soft badge-soft-slate font-monospace ms-1">@Model.Count()</span></h1>
+        <p class="text-muted mb-0">Управління обліковими записами співробітників, ролями безпеки та правами доступу.</p>
     </div>
-    <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Додати рекрутера</a>
+    <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Додати співробітника</a>
 </div>
 
 <div class="card">
     @if (Model.Any())
     {
         <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>ПІБ</th>
+                        <th>Співробітник</th>
                         <th>Електронна пошта</th>
                         <th>Логін</th>
-                        <th>Роль</th>
-                        <th>Створено</th>
+                        <th>Роль доступу</th>
+                        <th>Дата реєстрації</th>
                         <th class="text-end">Дії</th>
                     </tr>
                 </thead>
                 <tbody>
                 @foreach (var item in Model)
                 {
-                    var badgeClass = HrOptions.RecruiterRoleBadge(item.Role);
-
+                    var initial = string.IsNullOrWhiteSpace(item.FullName) ? "R" : item.FullName.Trim()[0].ToString().ToUpperInvariant();
                     <tr class="clickable-row" data-row-link="@Url.Action("Details", new { id = item.Id })" tabindex="0">
-                        <td class="fw-semibold">@item.FullName</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="profile-avatar" style="height:34px;min-width:34px;font-size:0.82rem;">@initial</span>
+                                <span class="fw-semibold">@item.FullName</span>
+                            </div>
+                        </td>
                         <td>@item.Email</td>
-                        <td><code>@item.Login</code></td>
-                        <td><span class="badge @badgeClass">@item.Role</span></td>
-                        <td>@item.CreatedAt.ToLocalTime().ToString("d")</td>
+                        <td><code class="font-monospace">@item.Login</code></td>
+                        <td><span class="@HrOptions.RecruiterRoleBadge(item.Role)">@HrOptions.RecruiterRoleLabel(item.Role)</span></td>
+                        <td class="font-monospace small text-muted">@item.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</td>
                         <td class="text-end text-nowrap">
-                            <a class="btn btn-sm btn-warning" asp-action="Edit" asp-route-id="@item.Id"><span aria-hidden="true">E</span> Редагувати</a>
-                            <a class="btn btn-sm btn-outline-info" asp-action="Details" asp-route-id="@item.Id"><span aria-hidden="true">i</span> Деталі</a>
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">Деталі</a>
+                            <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@item.Id">Редагувати</a>
                             <a class="btn btn-sm btn-outline-danger" asp-action="Delete" asp-route-id="@item.Id">Видалити</a>
                         </td>
                     </tr>
@@ -52,9 +57,9 @@
     else
     {
         <div class="empty-state">
-            <h2 class="h5">Дані відсутні</h2>
-            <p class="text-muted mb-3">Натисніть кнопку «Додати», щоб створити перший запис.</p>
-            <a class="btn btn-success" asp-action="Create"><span aria-hidden="true">+</span> Додати рекрутера</a>
+            <h2 class="h5 fw-bold">Співробітників не знайдено</h2>
+            <p class="text-muted mb-3">Додайте першого рекрутера або інтерв'юера до системи.</p>
+            <a class="btn btn-primary" asp-action="Create"><span aria-hidden="true">+</span> Додати співробітника</a>
         </div>
     }
 </div>

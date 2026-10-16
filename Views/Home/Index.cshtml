@@ -1,25 +1,25 @@
 @model HRReserveSystem.ViewModels.DashboardViewModel
 
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Панель керування";
 
     var applicationTotal = Math.Max(1, Model.ApplicationStatusCounts.Values.Sum());
     var vacancyTotal = Math.Max(1, Model.VacancyStatusCounts.Values.Sum());
     var applicationColors = new Dictionary<string, string>
     {
-        ["New"] = "#60a5fa",
-        ["Screening"] = "#3b82f6",
+        ["New"] = "#64748b",
+        ["Screening"] = "#2563eb",
         ["Interview"] = "#f59e0b",
         ["TestTask"] = "#06b6d4",
-        ["Offer"] = "#22c55e",
-        ["Hired"] = "#10b981",
+        ["Offer"] = "#10b981",
+        ["Hired"] = "#059669",
         ["Rejected"] = "#ef4444"
     };
     var vacancyColors = new Dictionary<string, string>
     {
-        ["Open"] = "#22c55e",
+        ["Open"] = "#10b981",
         ["Paused"] = "#f59e0b",
-        ["Closed"] = "#ef4444"
+        ["Closed"] = "#64748b"
     };
     var canOpenHiringPages = User.IsInRole("Admin") || User.IsInRole("Recruiter");
     var canOpenInterviewPages = User.IsInRole("Admin") || User.IsInRole("Interviewer");
@@ -43,15 +43,23 @@
 
 <div class="dashboard-hero mb-4">
     <div class="dashboard-hero-copy">
-        <h1 class="h2 mb-1">Dashboard кадрового резерву</h1>
-        <p class="text-muted mb-0">Огляд кандидатів, вакансій, етапів відбору, співбесід і soft skills для щоденної роботи рекрутера.</p>
+        <span class="section-eyebrow">Аналітичний центр</span>
+        <h1 class="h2 fw-bold mb-1">Панель кадрового резерву</h1>
+        <p class="text-muted mb-0">Огляд кандидатів, відкритих позицій, воронки відбору, запланованих співбесід та оцінки Soft Skills у реальному часі.</p>
     </div>
     @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
     {
         <div class="dashboard-actions">
-            <a class="btn btn-success" asp-controller="Candidates" asp-action="Create"><span aria-hidden="true">+</span> Кандидат</a>
-            <a class="btn btn-primary" asp-controller="Vacancies" asp-action="Create"><span aria-hidden="true">+</span> Вакансія</a>
-            <a class="btn btn-outline-secondary" asp-controller="Applications" asp-action="Create"><span aria-hidden="true">+</span> Заявка</a>
+            <a class="btn btn-primary" asp-controller="Candidates" asp-action="Create"><span aria-hidden="true">+</span> Додати кандидата</a>
+            <a class="btn btn-outline-primary" asp-controller="Vacancies" asp-action="Create"><span aria-hidden="true">+</span> Нова вакансія</a>
+            <a class="btn btn-outline-secondary" asp-controller="Applications" asp-action="Create"><span aria-hidden="true">+</span> Створити заявку</a>
+        </div>
+    }
+    else
+    {
+        <div class="dashboard-actions">
+            <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create"><span aria-hidden="true">+</span> Новий відгук</a>
+            <a class="btn btn-outline-secondary" asp-controller="SoftSkillAssessments" asp-action="Create"><span aria-hidden="true">+</span> Оцінка Soft Skills</a>
         </div>
     }
 </div>
@@ -63,11 +71,11 @@
             <div class="card-body">
                 <div class="dashboard-card-head">
                     <span class="dashboard-icon dashboard-icon-blue" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7 8a7 7 0 0 0-14 0" /></svg></span>
-                    <span class="text-muted small text-uppercase">Кандидати</span>
+                    <span class="text-muted small text-uppercase">Кандидати в резерві</span>
                 </div>
-                <div class="display-6 fw-semibold">@Model.CandidateCount</div>
+                <div class="display-6 fw-bold font-monospace">@Model.CandidateCount</div>
                 @{ var candSign = Model.CandidateDelta >= 0 ? "↗" : "↘"; var candClass = Model.CandidateDelta >= 0 ? "text-success" : "text-danger"; var candAbs = Math.Abs(Model.CandidateDelta); }
-                <div class="metric-delta @candClass">@candSign @((candAbs == 0) ? "0" : (Model.CandidateDelta > 0 ? "+" + candAbs : "-" + candAbs)) цього тижня</div>
+                <div class="metric-delta @candClass">@candSign @((candAbs == 0) ? "0" : (Model.CandidateDelta > 0 ? "+" + candAbs : "-" + candAbs)) за 7 днів</div>
             </div>
         </a>
         <a class="card dashboard-card dashboard-card-link" href="@vacanciesUrl">
@@ -76,20 +84,20 @@
                     <span class="dashboard-icon dashboard-icon-violet" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0h12v12H4V7h4Z" /></svg></span>
                     <span class="text-muted small text-uppercase">Вакансії</span>
                 </div>
-                <div class="display-6 fw-semibold">@Model.VacancyCount</div>
+                <div class="display-6 fw-bold font-monospace">@Model.VacancyCount</div>
                 @{ var vacSign = Model.VacancyDelta >= 0 ? "↗" : "↘"; var vacClass = Model.VacancyDelta >= 0 ? "text-success" : "text-danger"; var vacAbs = Math.Abs(Model.VacancyDelta); }
-                <div class="metric-delta @vacClass">@vacSign @((vacAbs == 0) ? "0" : (Model.VacancyDelta > 0 ? "+" + vacAbs : "-" + vacAbs)) цього тижня</div>
+                <div class="metric-delta @vacClass">@vacSign @((vacAbs == 0) ? "0" : (Model.VacancyDelta > 0 ? "+" + vacAbs : "-" + vacAbs)) за 7 днів</div>
             </div>
         </a>
         <a class="card dashboard-card dashboard-card-link" href="@applicationsUrl">
             <div class="card-body">
                 <div class="dashboard-card-head">
                     <span class="dashboard-icon dashboard-icon-amber" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v5h5M9 13h6M9 17h6" /></svg></span>
-                    <span class="text-muted small text-uppercase">Заявки</span>
+                    <span class="text-muted small text-uppercase">Активні заявки</span>
                 </div>
-                <div class="display-6 fw-semibold">@Model.ApplicationCount</div>
+                <div class="display-6 fw-bold font-monospace">@Model.ApplicationCount</div>
                 @{ var appSign = Model.ApplicationDelta >= 0 ? "↗" : "↘"; var appClass = Model.ApplicationDelta >= 0 ? "text-success" : "text-danger"; var appAbs = Math.Abs(Model.ApplicationDelta); }
-                <div class="metric-delta @appClass">@appSign @((appAbs == 0) ? "0" : (Model.ApplicationDelta > 0 ? "+" + appAbs : "-" + appAbs)) цього тижня</div>
+                <div class="metric-delta @appClass">@appSign @((appAbs == 0) ? "0" : (Model.ApplicationDelta > 0 ? "+" + appAbs : "-" + appAbs)) за 7 днів</div>
             </div>
         </a>
     }
@@ -99,9 +107,9 @@
                 <span class="dashboard-icon dashboard-icon-cyan" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H8l-3 4V5Z" /></svg></span>
                 <span class="text-muted small text-uppercase">Співбесіди</span>
             </div>
-            <div class="display-6 fw-semibold">@Model.InterviewCount</div>
+            <div class="display-6 fw-bold font-monospace">@Model.InterviewCount</div>
             @{ var intSign = Model.InterviewDelta >= 0 ? "↗" : "↘"; var intClass = Model.InterviewDelta >= 0 ? "text-success" : "text-danger"; var intAbs = Math.Abs(Model.InterviewDelta); }
-            <div class="metric-delta @intClass">@intSign @((intAbs == 0) ? "0" : (Model.InterviewDelta > 0 ? "+" + intAbs : "-" + intAbs)) цього тижня</div>
+            <div class="metric-delta @intClass">@intSign @((intAbs == 0) ? "0" : (Model.InterviewDelta > 0 ? "+" + intAbs : "-" + intAbs)) за 7 днів</div>
         </div>
     </a>
     @if (canOpenInterviewPages)
@@ -110,10 +118,10 @@
             <div class="card-body">
                 <div class="dashboard-card-head">
                     <span class="dashboard-icon dashboard-icon-success" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.9-5.4 2.9 1-6-4.4-4.3 6.1-.9z" /></svg></span>
-                    <span class="text-muted small text-uppercase">Soft skills</span>
+                    <span class="text-muted small text-uppercase">Soft Skills</span>
                 </div>
-                <div class="display-6 fw-semibold">@Model.AverageSoftSkillScore</div>
-                <div class="metric-delta text-muted">Середній бал / 10</div>
+                <div class="display-6 fw-bold font-monospace">@Model.AverageSoftSkillScore</div>
+                <div class="metric-delta text-muted">Середній бал з 10</div>
             </div>
         </a>
     }
@@ -123,10 +131,10 @@
             <div class="card-body">
                 <div class="dashboard-card-head">
                     <span class="dashboard-icon dashboard-icon-violet" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm6-1a3 3 0 1 0 0-6M3 20a6 6 0 0 1 12 0m3 0a6 6 0 0 0-3-5.2" /></svg></span>
-                    <span class="text-muted small text-uppercase">Рекрутери</span>
+                    <span class="text-muted small text-uppercase">Команда</span>
                 </div>
-                <div class="display-6 fw-semibold">@Model.RecruiterCount</div>
-                <div class="metric-delta text-muted">Активні</div>
+                <div class="display-6 fw-bold font-monospace">@Model.RecruiterCount</div>
+                <div class="metric-delta text-muted">Активні учасники</div>
             </div>
         </a>
     }
@@ -138,9 +146,9 @@
                     <span class="dashboard-icon dashboard-icon-success" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg></span>
                     <span class="text-muted small text-uppercase">Прийняті</span>
                 </div>
-                <div class="display-6 fw-semibold">@Model.AcceptedCandidateCount</div>
+                <div class="display-6 fw-bold font-monospace">@Model.AcceptedCandidateCount</div>
                 @{ var accSign = Model.AcceptedDelta >= 0 ? "↗" : "↘"; var accClass = Model.AcceptedDelta >= 0 ? "text-success" : "text-danger"; var accAbs = Math.Abs(Model.AcceptedDelta); }
-                <div class="metric-delta @accClass">@accSign @((accAbs == 0) ? "0" : (Model.AcceptedDelta > 0 ? "+" + accAbs : "-" + accAbs)) цього тижня</div>
+                <div class="metric-delta @accClass">@accSign @((accAbs == 0) ? "0" : (Model.AcceptedDelta > 0 ? "+" + accAbs : "-" + accAbs)) за 7 днів</div>
             </div>
         </a>
         <a class="card dashboard-card dashboard-card-link" href="@rejectedUrl">
@@ -149,9 +157,9 @@
                     <span class="dashboard-icon dashboard-icon-danger" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></svg></span>
                     <span class="text-muted small text-uppercase">Відхилені</span>
                 </div>
-                <div class="display-6 fw-semibold">@Model.RejectedCandidateCount</div>
+                <div class="display-6 fw-bold font-monospace">@Model.RejectedCandidateCount</div>
                 @{ var rejSign = Model.RejectedDelta >= 0 ? "↗" : "↘"; var rejClass = Model.RejectedDelta >= 0 ? "text-success" : "text-danger"; var rejAbs = Math.Abs(Model.RejectedDelta); }
-                <div class="metric-delta @rejClass">@rejSign @((rejAbs == 0) ? "0" : (Model.RejectedDelta > 0 ? "+" + rejAbs : "-" + rejAbs)) цього тижня</div>
+                <div class="metric-delta @rejClass">@rejSign @((rejAbs == 0) ? "0" : (Model.RejectedDelta > 0 ? "+" + rejAbs : "-" + rejAbs)) за 7 днів</div>
             </div>
         </a>
     }
@@ -162,8 +170,11 @@
     {
         <section class="card bento-card bento-card-wide">
             <div class="card-header">
-                <h2 class="h5 mb-0">Заявки за статусами</h2>
-                <a class="btn btn-sm btn-link" asp-controller="Applications" asp-action="Index">Усі</a>
+                <div>
+                    <h2 class="h5 mb-0">Воронка заявок за етапами</h2>
+                    <small class="text-muted">Розподіл кандидатів по етапах рекрутингу</small>
+                </div>
+                <a class="btn btn-sm btn-outline-secondary" asp-controller="Applications" asp-action="Index">Усі заявки →</a>
             </div>
             <div class="card-body bento-chart-body">
                 <div class="donut-chart" aria-label="Заявки за статусами">
@@ -184,8 +195,9 @@
                                 var gap = Math.Max(0, 100.0 - share);
                                 var percent = (int)Math.Round(count * 100.0 / applicationTotal);
                                 var statusUrl = Url.Action("Index", "Applications", new { status });
+                                var label = HrOptions.ApplicationStatusLabel(status);
 
-                                <a class="donut-segment-link" href="@statusUrl" aria-label="@($"{status}: {count} ({percent}%)")">
+                                <a class="donut-segment-link" href="@statusUrl" aria-label="@($"{label}: {count} ({percent}%)")">
                                     <circle class="donut-segment"
                                             cx="50"
                                             cy="50"
@@ -194,7 +206,7 @@
                                             stroke="@applicationColors[status]"
                                             stroke-dasharray="@FormatChartNumber(share) @FormatChartNumber(gap)"
                                             stroke-dashoffset="@FormatChartNumber(-applicationOffset)">
-                                        <title>@status: @count (@percent%)</title>
+                                        <title>@label: @count (@percent%)</title>
                                     </circle>
                                 </a>
 
@@ -202,7 +214,7 @@
                             }
                         </g>
                     </svg>
-                    <span>@Model.ApplicationCount</span>
+                    <span class="font-monospace">@Model.ApplicationCount</span>
                 </div>
                 <div class="status-legend">
                     @foreach (var status in HrOptions.ApplicationStatuses)
@@ -217,8 +229,8 @@
 
                         <a class="status-legend-row" href="@statusUrl">
                             <span class="legend-dot" style="background:@applicationColors[status]"></span>
-                            <span>@status</span>
-                            <strong>@count (@percent%)</strong>
+                            <span>@HrOptions.ApplicationStatusLabel(status)</span>
+                            <strong class="font-monospace">@count (@percent%)</strong>
                         </a>
                     }
                 </div>
@@ -227,22 +239,22 @@
 
         <section class="card bento-card">
             <div class="card-header">
-                <h2 class="h5 mb-0">Останні кандидати</h2>
+                <h2 class="h5 mb-0">Нові кандидати в резерві</h2>
                 <a class="btn btn-sm btn-link" asp-controller="Candidates" asp-action="Index">Усі</a>
             </div>
             <div class="card-body">
                 @if (Model.RecentCandidates.Any())
                 {
                     <div class="stack-list">
-                        @foreach (var candidate in Model.RecentCandidates.Take(3))
+                        @foreach (var candidate in Model.RecentCandidates.Take(4))
                         {
                             <a class="stack-list-item" asp-controller="Candidates" asp-action="Details" asp-route-id="@candidate.Id">
                                 <span class="candidate-avatar">@candidate.FullName.Trim()[0]</span>
                                 <span class="min-w-0">
                                     <strong>@candidate.FullName</strong>
-                                    <small>@candidate.Email</small>
+                                    <small class="text-truncate d-block">@candidate.Email</small>
                                 </span>
-                                <span class="badge text-bg-info text-dark">@candidate.ExperienceYears р. досвіду</span>
+                                <span class="badge-soft badge-soft-blue font-monospace">@candidate.ExperienceYears р.</span>
                             </a>
                         }
                     </div>
@@ -258,31 +270,31 @@
     <section class="card bento-card">
         <div class="card-header">
             <h2 class="h5 mb-0">Найближчі співбесіди</h2>
-            <a class="btn btn-sm btn-link" asp-controller="Interviews" asp-action="Index">Усі</a>
+            <a class="btn btn-sm btn-link" asp-controller="Interviews" asp-action="Calendar">Календар</a>
         </div>
         <div class="card-body">
             @if (Model.UpcomingInterviews.Any())
             {
                 <div class="interview-stack">
-                @foreach (var interview in Model.UpcomingInterviews.Take(3))
+                @foreach (var interview in Model.UpcomingInterviews.Take(4))
                 {
                     <a class="interview-item" asp-controller="Interviews" asp-action="Details" asp-route-id="@interview.Id">
                         <span class="interview-date">
-                            <strong>@interview.InterviewDate.Day</strong>
+                            <strong class="font-monospace">@interview.InterviewDate.Day</strong>
                             <small>@interview.InterviewDate.ToString("MMM")</small>
                         </span>
                         <span class="min-w-0">
                             <strong>@interview.Application?.Candidate?.FullName</strong>
-                            <small>@interview.Application?.Vacancy?.Title · @interview.InterviewDate.ToString("g")</small>
+                            <small class="text-truncate d-block">@interview.Application?.Vacancy?.Title · @interview.InterviewDate.ToString("HH:mm")</small>
                         </span>
-                        <span class="badge @HrOptions.InterviewResultBadge(interview.Result)">@interview.Result</span>
+                        <span class="@HrOptions.InterviewResultBadge(interview.Result)">@HrOptions.InterviewResultLabel(interview.Result)</span>
                     </a>
                 }
                 </div>
             }
             else
             {
-                <div class="empty-state">Найближчих співбесід немає.</div>
+                <div class="empty-state">Запланованих співбесід немає.</div>
             }
         </div>
     </section>
@@ -291,7 +303,7 @@
     {
         <section class="card bento-card">
             <div class="card-header">
-                <h2 class="h5 mb-0">Вакансії за статусами</h2>
+                <h2 class="h5 mb-0">Статус вакансій</h2>
                 <a class="btn btn-sm btn-link" asp-controller="Vacancies" asp-action="Index">Усі</a>
             </div>
             <div class="card-body bento-chart-body">
@@ -313,8 +325,9 @@
                                 var gap = Math.Max(0, 100.0 - share);
                                 var percent = (int)Math.Round(count * 100.0 / vacancyTotal);
                                 var statusUrl = Url.Action("Index", "Vacancies", new { status });
+                                var label = HrOptions.VacancyStatusLabel(status);
 
-                                <a class="donut-segment-link" href="@statusUrl" aria-label="@($"{status}: {count} ({percent}%)")">
+                                <a class="donut-segment-link" href="@statusUrl" aria-label="@($"{label}: {count} ({percent}%)")">
                                     <circle class="donut-segment"
                                             cx="50"
                                             cy="50"
@@ -323,7 +336,7 @@
                                             stroke="@vacancyColors[status]"
                                             stroke-dasharray="@FormatChartNumber(share) @FormatChartNumber(gap)"
                                             stroke-dashoffset="@FormatChartNumber(-vacancyOffset)">
-                                        <title>@status: @count (@percent%)</title>
+                                        <title>@label: @count (@percent%)</title>
                                     </circle>
                                 </a>
 
@@ -331,7 +344,7 @@
                             }
                         </g>
                     </svg>
-                    <span>@Model.VacancyCount</span>
+                    <span class="font-monospace">@Model.VacancyCount</span>
                 </div>
                 <div class="status-legend">
                     @foreach (var status in HrOptions.VacancyStatuses)
@@ -342,8 +355,8 @@
 
                         <a class="status-legend-row" href="@statusUrl">
                             <span class="legend-dot" style="background:@vacancyColors[status]"></span>
-                            <span>@status</span>
-                            <strong>@count (@percent%)</strong>
+                            <span>@HrOptions.VacancyStatusLabel(status)</span>
+                            <strong class="font-monospace">@count (@percent%)</strong>
                         </a>
                     }
                 </div>
@@ -352,22 +365,22 @@
 
         <section class="card bento-card bento-card-vacancies">
             <div class="card-header">
-                <h2 class="h5 mb-0">Останні вакансії</h2>
+                <h2 class="h5 mb-0">Актуальні вакансії</h2>
                 <a class="btn btn-sm btn-link" asp-controller="Vacancies" asp-action="Index">Усі</a>
             </div>
             <div class="card-body">
                 @if (Model.RecentVacancies.Any())
                 {
                     <div class="stack-list">
-                        @foreach (var vacancy in Model.RecentVacancies.Take(3))
+                        @foreach (var vacancy in Model.RecentVacancies.Take(4))
                         {
                             <a class="stack-list-item" asp-controller="Vacancies" asp-action="Details" asp-route-id="@vacancy.Id">
                                 <span class="vacancy-marker"></span>
                                 <span class="min-w-0">
                                     <strong>@vacancy.Title</strong>
-                                    <small>@vacancy.SalaryMin - @vacancy.SalaryMax</small>
+                                    <small class="font-monospace">@vacancy.SalaryMin.ToString("N0") – @vacancy.SalaryMax.ToString("N0") грн</small>
                                 </span>
-                                <span class="badge @HrOptions.VacancyStatusBadge(vacancy.Status)">@vacancy.Status</span>
+                                <span class="@HrOptions.VacancyStatusBadge(vacancy.Status)">@HrOptions.VacancyStatusLabel(vacancy.Status)</span>
                             </a>
                         }
                     </div>
