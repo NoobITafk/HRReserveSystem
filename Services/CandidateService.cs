@@ -7,6 +7,7 @@ namespace HRReserveSystem.Services;
 public class CandidateService(
     ApplicationDbContext context,
     ICandidateFileStorageService fileStorage,
+    IObjectStorageService objectStorage,
     ResumeIntelligenceService resumeIntelligence,
     IEmailBackgroundQueue emailQueue,
     IAuditService auditService,
@@ -346,5 +347,152 @@ public class CandidateService(
         }
 
         return query;
+    }
+
+    public async Task<string?> GetPresignedResumeUrlAsync(string resumePath, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(resumePath)) return null;
+        return await objectStorage.GeneratePresignedDownloadUrlAsync(resumePath, TimeSpan.FromMinutes(15), ct);
+    }
+
+    public async Task<(Stream? Stream, string ContentType, string DownloadName)> GetResumeFileStreamAsync(string resumePath, string candidateName, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(resumePath)) return (null, string.Empty, string.Empty);
+
+        var stream = await objectStorage.GetFileStreamAsync(resumePath, ct);
+        if (stream is null)
+        {
+            var physicalPath = fileStorage.GetPhysicalResumePath(resumePath);
+            if (File.Exists(physicalPath))
+            {
+                stream = File.OpenRead(physicalPath);
+            }
+        }
+
+        if (stream is null) return (null, string.Empty, string.Empty);
+
+        var ext = Path.GetExtension(resumePath);
+        var contentType = fileStorage.GetResumeContentType(resumePath);
+        var safeCandidateName = string.Join("_", candidateName.Split(Path.GetInvalidFileNameChars(), StringSplitOptions.RemoveEmptyEntries));
+        var downloadName = $"Resume_{safeCandidateName}{ext}";
+
+        return (stream, contentType, downloadName);
+    }
+
+    public async Task<object?> GetQuickViewDataAsync(int id, CancellationToken ct = default)
+    {
+        var candidate = await context.Candidates
+            .AsNoTracking()
+            .Include(c => c.Applications)
+                .ThenInclude(a => a.Vacancy)
+            .Include(c => c.SoftSkillAssessments)
+            .Include(c => c.Communications)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, ct);
+
+        if (candidate is null)
+        {
+            return null;
+        }
+
+        var interviews = await context.Interviews
+            .AsNoTracking()
+            .Include(i => i.Application)
+                .ThenInclude(a => a!.Vacancy)
+            .Include(i => i.Recruiter)
+            .Where(i => i.Application != null && i.Application.CandidateId == candidate.Id)
+            .OrderByDescending(i => i.InterviewDate)
+            .Select(i => new
+            {
+                id = i.Id,
+                interviewType = i.InterviewType,
+                interviewTypeLabel = HrOptions.InterviewTypeLabel(i.InterviewType),
+                interviewDate = i.InterviewDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+                notes = i.Notes,
+                result = i.Result,
+                resultBadge = HrOptions.InterviewResultBadge(i.Result),
+                recruiterName = i.Recruiter != null ? i.Recruiter.FullName : "Рекрутер"
+            })
+            .ToListAsync(ct);
+
+        var latestSoftSkill = candidate.SoftSkillAssessments.LastOrDefault();
+        object? softSkillsData = null;
+        if (latestSoftSkill is not null)
+        {
+            var avg = (latestSoftSkill.Communication + latestSoftSkill.Teamwork + latestSoftSkill.Responsibility + latestSoftSkill.StressResistance + latestSoftSkill.Leadership) / 5.0;
+            softSkillsData = new
+            {
+                communication = latestSoftSkill.Communication,
+                teamwork = latestSoftSkill.Teamwork,
+                responsibility = latestSoftSkill.Responsibility,
+                stressResistance = latestSoftSkill.StressResistance,
+                leadership = latestSoftSkill.Leadership,
+                average = Math.Round(avg, 1)
+            };
+        }
+
+        var communications = candidate.Communications
+            .OrderByDescending(c => c.SentAt)
+            .Take(10)
+            .Select(c => new
+            {
+                id = c.Id,
+                senderName = c.SenderName,
+                recipientEmail = c.RecipientEmail,
+                subject = c.Subject,
+                body = c.Body,
+                channel = c.Channel,
+                sentAt = c.SentAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+                status = c.Status
+            })
+            .ToList();
+
+        return new
+        {
+            success = true,
+            id = candidate.Id,
+            fullName = candidate.FullName,
+            email = candidate.Email,
+            phone = candidate.Phone ?? "Не вказано",
+            skills = candidate.Skills,
+            experienceYears = candidate.ExperienceYears,
+            avatarUrl = candidate.AvatarUrl,
+            resumePath = candidate.ResumeFilePath,
+            summary = candidate.ResumeSummary,
+            notes = candidate.ResumeSummary,
+            hasResume = !string.IsNullOrWhiteSpace(candidate.ResumeFilePath),
+            createdAt = candidate.CreatedAt.ToString("dd.MM.yyyy"),
+            applications = candidate.Applications.Select(a => new
+            {
+                id = a.Id,
+                vacancyTitle = a.Vacancy?.Title ?? "Вакансія",
+                status = a.Status,
+                statusLabel = HrOptions.ApplicationStatusLabel(a.Status),
+                statusBadge = HrOptions.ApplicationStatusBadge(a.Status),
+                appliedAt = a.AppliedAt.ToString("dd.MM.yyyy")
+            }),
+            interviews,
+            softSkills = softSkillsData,
+            communications
+        };
+    }
+
+    public async Task<List<Interview>> GetCandidateInterviewsAsync(int candidateId, CancellationToken ct = default)
+    {
+        return await context.Interviews
+            .AsNoTracking()
+            .Include(i => i.Application)
+                .ThenInclude(a => a!.Vacancy)
+            .Include(i => i.Recruiter)
+            .Include(i => i.Feedbacks)
+            .Where(i => i.Application != null && i.Application.CandidateId == candidateId)
+            .OrderByDescending(i => i.InterviewDate)
+            .ToListAsync(ct);
+    }
+
+    public ParsedResumeResult? ParseResume(string? resumePath)
+    {
+        if (string.IsNullOrWhiteSpace(resumePath)) return null;
+        var fullPath = fileStorage.GetPhysicalResumePath(resumePath);
+        return File.Exists(fullPath) ? resumeIntelligence.ParseResumeFile(fullPath) : null;
     }
 }

@@ -79,4 +79,19 @@ public class LocalObjectStorageService(
             _ => "application/octet-stream"
         };
     }
+
+    public Task<string?> GeneratePresignedDownloadUrlAsync(string storagePath, TimeSpan expiry, CancellationToken ct = default)
+    {
+        var fileName = Path.GetFileName(storagePath);
+        var token = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{fileName}:{DateTimeOffset.UtcNow.Add(expiry).ToUnixTimeSeconds()}"));
+        return Task.FromResult<string?>($"/Candidates/DownloadResume?file={Uri.EscapeDataString(fileName)}&token={Uri.EscapeDataString(token)}");
+    }
+
+    public Task<(string UploadUrl, string FinalStoragePath)> GeneratePresignedUploadUrlAsync(string fileName, string contentType, TimeSpan expiry, CancellationToken ct = default)
+    {
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var safeFileName = $"{Guid.NewGuid():N}{extension}";
+        var finalPath = $"/uploads/resumes/{safeFileName}";
+        return Task.FromResult(("/api/storage/direct-upload", finalPath));
+    }
 }

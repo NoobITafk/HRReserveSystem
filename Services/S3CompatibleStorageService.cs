@@ -143,4 +143,40 @@ public class S3CompatibleStorageService : IObjectStorageService
     }
 
     public string GetContentType(string fileName) => _fallback.GetContentType(fileName);
+
+    public Task<string?> GeneratePresignedDownloadUrlAsync(string storagePath, TimeSpan expiry, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ServiceUrl) || string.IsNullOrWhiteSpace(_options.BucketName))
+        {
+            return _fallback.GeneratePresignedDownloadUrlAsync(storagePath, expiry, ct);
+        }
+
+        var key = Path.GetFileName(storagePath);
+        var expiresUnix = DateTimeOffset.UtcNow.Add(expiry).ToUnixTimeSeconds();
+        var stringToSign = $"GET\n\n\n{expiresUnix}\n/{_options.BucketName}/{key}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_options.SecretKey));
+        var signature = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(stringToSign)));
+
+        var url = $"{_options.ServiceUrl.TrimEnd('/')}/{_options.BucketName}/{key}?AWSAccessKeyId={Uri.EscapeDataString(_options.AccessKey)}&Signature={Uri.EscapeDataString(signature)}&Expires={expiresUnix}";
+        return Task.FromResult<string?>(url);
+    }
+
+    public Task<(string UploadUrl, string FinalStoragePath)> GeneratePresignedUploadUrlAsync(string fileName, string contentType, TimeSpan expiry, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(_options.ServiceUrl) || string.IsNullOrWhiteSpace(_options.BucketName))
+        {
+            return _fallback.GeneratePresignedUploadUrlAsync(fileName, contentType, expiry, ct);
+        }
+
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var safeKey = $"{Guid.NewGuid():N}{extension}";
+        var expiresUnix = DateTimeOffset.UtcNow.Add(expiry).ToUnixTimeSeconds();
+        var stringToSign = $"PUT\n\n{contentType}\n{expiresUnix}\n/{_options.BucketName}/{safeKey}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_options.SecretKey));
+        var signature = Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(stringToSign)));
+
+        var uploadUrl = $"{_options.ServiceUrl.TrimEnd('/')}/{_options.BucketName}/{safeKey}?AWSAccessKeyId={Uri.EscapeDataString(_options.AccessKey)}&Signature={Uri.EscapeDataString(signature)}&Expires={expiresUnix}";
+        var finalStoragePath = $"/uploads/resumes/{safeKey}";
+        return Task.FromResult((uploadUrl, finalStoragePath));
+    }
 }

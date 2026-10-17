@@ -15,4 +15,9 @@ public interface ICandidateService
     Task<(bool Success, string? Error, string? NewResumePath)> UploadResumeAsync(int id, IFormFile resumeFile, CancellationToken ct = default);
     Task<(bool Success, string? Error, string Note, string Timestamp, string Author)> AddNoteAsync(int candidateId, int? applicationId, string note, string author, CancellationToken ct = default);
     Task<(bool Success, string? Error, CandidateCommunication? Communication)> SendMessageAsync(int candidateId, string subject, string body, string channel, string? templateType, string senderName, CancellationToken ct = default);
+    Task<string?> GetPresignedResumeUrlAsync(string resumePath, CancellationToken ct = default);
+    Task<(Stream? Stream, string ContentType, string DownloadName)> GetResumeFileStreamAsync(string resumePath, string candidateName, CancellationToken ct = default);
+    Task<object?> GetQuickViewDataAsync(int id, CancellationToken ct = default);
+    Task<List<Interview>> GetCandidateInterviewsAsync(int candidateId, CancellationToken ct = default);
+    ParsedResumeResult? ParseResume(string? resumePath);
 }

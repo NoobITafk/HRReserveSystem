@@ -34,10 +34,11 @@ public class CandidateServiceUnitTests
             var httpAccessor = new HttpContextAccessor();
             var audit = new AuditService(db, httpAccessor, new NullLogger<AuditService>());
             var stubEnv = new HrIntegrationTestsStubEnvironment();
-            var storage = new CandidateFileStorageService(stubEnv, new LocalObjectStorageService(stubEnv, new NullLogger<LocalObjectStorageService>()));
+            var objectStorage = new LocalObjectStorageService(stubEnv, new NullLogger<LocalObjectStorageService>());
+            var storage = new CandidateFileStorageService(stubEnv, objectStorage);
             var resumeIntel = new ResumeIntelligenceService();
             var queue = new EmailBackgroundQueue();
-            var service = new CandidateService(db, storage, resumeIntel, queue, audit, new NullLogger<CandidateService>());
+            var service = new CandidateService(db, storage, objectStorage, resumeIntel, queue, audit, new NullLogger<CandidateService>());
 
             var candidate = new Candidate
             {
@@ -69,10 +70,11 @@ public class CandidateServiceUnitTests
             var httpAccessor = new HttpContextAccessor();
             var audit = new AuditService(db, httpAccessor, new NullLogger<AuditService>());
             var stubEnv = new HrIntegrationTestsStubEnvironment();
-            var storage = new CandidateFileStorageService(stubEnv, new LocalObjectStorageService(stubEnv, new NullLogger<LocalObjectStorageService>()));
+            var objStorage = new LocalObjectStorageService(stubEnv, new NullLogger<LocalObjectStorageService>());
+            var storage = new CandidateFileStorageService(stubEnv, objStorage);
             var resumeIntel = new ResumeIntelligenceService();
             var queue = new EmailBackgroundQueue();
-            var service = new CandidateService(db, storage, resumeIntel, queue, audit, new NullLogger<CandidateService>());
+            var service = new CandidateService(db, storage, objStorage, resumeIntel, queue, audit, new NullLogger<CandidateService>());
 
             var candidate = new Candidate
             {
@@ -108,10 +110,11 @@ public class CandidateServiceUnitTests
             var httpAccessor = new HttpContextAccessor();
             var audit = new AuditService(db, httpAccessor, new NullLogger<AuditService>());
             var stubEnv = new HrIntegrationTestsStubEnvironment();
-            var storage = new CandidateFileStorageService(stubEnv, new LocalObjectStorageService(stubEnv, new NullLogger<LocalObjectStorageService>()));
+            var objStorage = new LocalObjectStorageService(stubEnv, new NullLogger<LocalObjectStorageService>());
+            var storage = new CandidateFileStorageService(stubEnv, objStorage);
             var resumeIntel = new ResumeIntelligenceService();
             var queue = new EmailBackgroundQueue();
-            var service = new CandidateService(db, storage, resumeIntel, queue, audit, new NullLogger<CandidateService>());
+            var service = new CandidateService(db, storage, objStorage, resumeIntel, queue, audit, new NullLogger<CandidateService>());
 
             var candidate = new Candidate
             {

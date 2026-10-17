@@ -16,4 +16,6 @@ public interface IObjectStorageService
     Task<Stream?> GetFileStreamAsync(string storagePath, CancellationToken ct = default);
     Task<bool> DeleteFileAsync(string storagePath, CancellationToken ct = default);
     string GetContentType(string fileName);
+    Task<string?> GeneratePresignedDownloadUrlAsync(string storagePath, TimeSpan expiry, CancellationToken ct = default);
+    Task<(string UploadUrl, string FinalStoragePath)> GeneratePresignedUploadUrlAsync(string fileName, string contentType, TimeSpan expiry, CancellationToken ct = default);
 }
