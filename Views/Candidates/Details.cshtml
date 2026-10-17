@@ -322,4 +322,48 @@
             </div>
         </div>
     }
+
+    <div class="col-12 mt-2">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="h5 mb-0">Історія звернень та комунікацій</h2>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge-soft badge-soft-blue font-monospace">@Model.Communications.Count листів</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-outreach-btn data-candidate-id="@Model.Id" data-candidate-name="@Model.FullName" data-candidate-email="@Model.Email" data-vacancy="@(Model.Applications.FirstOrDefault()?.Vacancy?.Title ?? "")">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                        Написати листа
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                @if (Model.Communications.Any())
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var comm in Model.Communications.OrderByDescending(c => c.SentAt))
+                        {
+                            <div class="p-3 rounded-3 surface-subtle border">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge-soft badge-soft-slate">@comm.Channel</span>
+                                        <strong>@comm.Subject</strong>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="text-muted small">Відправник: @comm.SenderName</span>
+                                        <span class="text-muted small font-monospace">@comm.SentAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</span>
+                                    </div>
+                                </div>
+                                <div class="small text-muted" style="white-space: pre-wrap;">@comm.Body</div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">Листів та повідомлень кандидату ще не надсилалось.</div>
+                }
+            </div>
+        </div>
+    </div>
 </div>
+
+@await Html.PartialAsync("_OutreachModal")

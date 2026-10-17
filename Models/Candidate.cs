@@ -52,4 +52,6 @@ public class Candidate
     public ICollection<Application> Applications { get; set; } = new List<Application>();
 
     public ICollection<SoftSkillAssessment> SoftSkillAssessments { get; set; } = new List<SoftSkillAssessment>();
+
+    public ICollection<CandidateCommunication> Communications { get; set; } = new List<CandidateCommunication>();
 }

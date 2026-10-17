@@ -151,26 +151,53 @@
         const list = document.querySelector("[data-notification-list]");
         const empty = document.querySelector("[data-notification-empty]");
 
-        function syncDot() {
-            const isRead = safeGet(notificationsStorageKey) === "true";
-            dots.forEach(function (dot) {
-                dot.hidden = isRead;
-                dot.classList.toggle("is-hidden", isRead);
-            });
+        async function fetchNotifications() {
+            try {
+                const res = await fetch("/Notifications/GetUnread");
+                if (!res.ok) return;
+                const data = await res.json();
+                const unreadCount = data.count || 0;
+
+                dots.forEach(function (dot) {
+                    dot.hidden = unreadCount === 0;
+                    dot.classList.toggle("is-hidden", unreadCount === 0);
+                });
+
+                if (list) {
+                    if (data.items && data.items.length > 0) {
+                        list.innerHTML = "";
+                        data.items.forEach(function (item) {
+                            const a = document.createElement("a");
+                            a.href = item.targetUrl || "#";
+                            a.className = "profile-notification-item";
+                            a.innerHTML = `
+                                <div class="profile-notification-title">${item.title}</div>
+                                <div class="profile-notification-text">${item.message}</div>
+                                <div class="profile-notification-time small text-muted">${item.timeAgo}</div>
+                            `;
+                            list.appendChild(a);
+                        });
+                        list.classList.remove("d-none");
+                        if (empty) empty.classList.add("d-none");
+                    } else {
+                        list.classList.add("d-none");
+                        if (empty) empty.classList.remove("d-none");
+                    }
+                }
+            } catch (e) {
+                // Background notification poll fallback
+            }
         }
 
-        if (list && empty) {
-            const hasMessages = list.querySelectorAll(".profile-notification-item, .notification-item").length > 0;
-            list.classList.toggle("d-none", !hasMessages);
-            empty.classList.toggle("d-none", hasMessages);
-        }
-
-        syncDot();
+        fetchNotifications();
 
         document.querySelectorAll("[data-notification-toggle], .profile-button").forEach(function (btn) {
             btn.addEventListener("click", function () {
-                safeSet(notificationsStorageKey, "true");
-                syncDot();
+                dots.forEach(function (dot) {
+                    dot.hidden = true;
+                    dot.classList.add("is-hidden");
+                });
+                fetch("/Notifications/MarkAllAsRead", { method: "POST" }).catch(() => {});
             });
         });
     }
@@ -332,6 +359,8 @@
                 if (!draggedCard) return;
 
                 const targetStatus = col.getAttribute("data-status");
+                const stageIdAttr = col.getAttribute("data-stage-id");
+                const stageId = stageIdAttr ? parseInt(stageIdAttr, 10) : null;
                 const currentStatus = draggedCard.getAttribute("data-status");
                 const appId = parseInt(draggedCard.getAttribute("data-application-id"), 10);
 
@@ -349,7 +378,7 @@
                     const response = await fetch("/Applications/UpdateStatusAjax", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: appId, status: targetStatus })
+                        body: JSON.stringify({ id: appId, status: targetStatus, stageId: stageId })
                     });
 
                     if (!response.ok) throw new Error("Помилка оновлення статусу");
@@ -378,6 +407,44 @@
                 if (badge) badge.textContent = cards.length.toString();
                 if (empty) empty.classList.toggle("d-none", cards.length > 0);
             });
+        }
+
+        // SignalR Real-Time Kanban Synchronizer
+        if (window.signalR) {
+            try {
+                const connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/hubs/kanban")
+                    .withAutomaticReconnect()
+                    .build();
+
+                connection.on("ApplicationMoved", function (data) {
+                    if (!data || !data.id) return;
+                    const card = board.querySelector(`.kanban-card[data-application-id="${data.id}"]`);
+                    const targetCol = board.querySelector(`.kanban-column-body[data-status="${data.status}"]`);
+                    if (card && targetCol && card.getAttribute("data-status") !== data.status) {
+                        targetCol.appendChild(card);
+                        card.setAttribute("data-status", data.status);
+                        updateColumnCounters();
+                        card.style.transition = "transform 0.3s ease, border-color 0.3s ease";
+                        card.style.borderColor = "var(--primary-color)";
+                        setTimeout(() => { card.style.borderColor = ""; }, 1200);
+                    }
+                });
+
+                connection.on("ApplicationCreated", function (data) {
+                    updateColumnCounters();
+                });
+
+                connection.start().then(function () {
+                    const select = document.querySelector('select[name="vacancyId"]');
+                    const vacId = select ? select.value : "0";
+                    connection.invoke("JoinVacancyBoard", vacId || "0");
+                }).catch(function (err) {
+                    console.warn("SignalR connection skipped:", err);
+                });
+            } catch (err) {
+                console.warn("SignalR init skipped:", err);
+            }
         }
     }
 
@@ -515,6 +582,31 @@
                     }
                 }
 
+                const commContainer = document.getElementById("qvCommunicationsList");
+                const commCount = document.getElementById("qvCommCount");
+                if (commContainer) {
+                    commContainer.innerHTML = "";
+                    if (data.communications && data.communications.length > 0) {
+                        if (commCount) commCount.textContent = `${data.communications.length} листів`;
+                        data.communications.forEach(c => {
+                            const item = document.createElement("div");
+                            item.className = "p-2 bg-surface border rounded-3";
+                            item.innerHTML = `
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge-soft badge-soft-slate">${c.channel} · ${c.status}</span>
+                                    <span class="small text-muted font-monospace">${c.sentAt}</span>
+                                </div>
+                                <strong class="d-block small text-truncate mb-1">${c.subject}</strong>
+                                <div class="small text-muted" style="white-space: pre-wrap; max-height: 55px; overflow-y: auto; font-size: 0.8rem;">${c.body}</div>
+                            `;
+                            commContainer.appendChild(item);
+                        });
+                    } else {
+                        if (commCount) commCount.textContent = "0 листів";
+                        commContainer.innerHTML = '<span class="text-muted small">Немає зафіксованих звернень</span>';
+                    }
+                }
+
                 const notesTimeline = document.getElementById("qvNotesTimeline");
                 if (notesTimeline) {
                     const comments = data.applications.map(a => a.recruiterComment).filter(c => c && c.trim()).join("\n\n");
@@ -526,6 +618,7 @@
 
                 const outreachTriggerBtn = document.getElementById("qvOutreachTriggerBtn");
                 if (outreachTriggerBtn) {
+                    outreachTriggerBtn.setAttribute("data-candidate-id", data.id);
                     outreachTriggerBtn.setAttribute("data-candidate-name", data.fullName);
                     outreachTriggerBtn.setAttribute("data-candidate-email", data.email);
                     outreachTriggerBtn.setAttribute("data-vacancy", data.applications.length > 0 ? data.applications[0].vacancyTitle : "");
@@ -576,6 +669,7 @@
         const modalEl = document.getElementById("outreachModal");
         if (!modalEl) return;
 
+        let activeCandidateId = null;
         let activeName = "";
         let activeEmail = "";
         let activeVacancy = "";
@@ -625,6 +719,8 @@
             const btn = e.target.closest("[data-outreach-btn], #qvOutreachTriggerBtn");
             if (!btn) return;
 
+            const cid = btn.getAttribute("data-candidate-id");
+            activeCandidateId = cid ? parseInt(cid, 10) : null;
             activeName = btn.getAttribute("data-candidate-name") || "Кандидате";
             activeEmail = btn.getAttribute("data-candidate-email") || "";
             activeVacancy = btn.getAttribute("data-vacancy") || "";
@@ -664,6 +760,63 @@
                         if (copyText) copyText.textContent = "Скопійовано!";
                         setTimeout(() => { if (copyText) copyText.textContent = "Скопіювати"; }, 1500);
                     });
+                }
+            });
+        }
+
+        const sendDirectBtn = document.getElementById("outreachSendDirectBtn");
+        const sendDirectText = document.getElementById("outreachSendDirectText");
+        if (sendDirectBtn) {
+            sendDirectBtn.addEventListener("click", async function () {
+                const subjectInput = document.getElementById("outreachSubjectInput");
+                const bodyArea = document.getElementById("outreachBodyTextarea");
+                if (!subjectInput || !bodyArea) return;
+
+                if (!activeCandidateId) {
+                    alert("Оберіть кандидата для відправки листа.");
+                    return;
+                }
+
+                const subj = subjectInput.value.trim();
+                const text = bodyArea.value.trim();
+                if (!subj || !text) {
+                    alert("Тема та тіло листа обов'язкові для заповнення.");
+                    return;
+                }
+
+                sendDirectBtn.disabled = true;
+                if (sendDirectText) sendDirectText.textContent = "Надсилання...";
+
+                try {
+                    const res = await fetch("/Candidates/SendMessageAjax", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            candidateId: activeCandidateId,
+                            subject: subj,
+                            body: text,
+                            channel: "Email",
+                            templateType: activeType
+                        })
+                    });
+
+                    if (!res.ok) throw new Error("Помилка надсилання повідомлення");
+                    const result = await res.json();
+                    if (!result.success) throw new Error(result.message || "Не вдалося надіслати");
+
+                    if (sendDirectText) sendDirectText.textContent = "Надіслано!";
+                    setTimeout(() => {
+                        if (sendDirectText) sendDirectText.textContent = "Надіслати лист";
+                        sendDirectBtn.disabled = false;
+                        if (window.bootstrap && bootstrap.Modal) {
+                            const bsModal = bootstrap.Modal.getInstance(modalEl);
+                            if (bsModal) bsModal.hide();
+                        }
+                    }, 800);
+                } catch (err) {
+                    alert("Не вдалося надіслати повідомлення: " + err.message);
+                    sendDirectBtn.disabled = false;
+                    if (sendDirectText) sendDirectText.textContent = "Надіслати лист";
                 }
             });
         }

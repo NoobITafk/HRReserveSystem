@@ -21,3 +21,5 @@ appsettings.Local.json
 appsettings.*.local.json
 *.tar.gz
 deploy.tar.gz
+.agents/
+

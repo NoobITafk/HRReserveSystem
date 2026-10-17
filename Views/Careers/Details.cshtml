@@ -1,0 +1,141 @@
+@model HRReserveSystem.Models.Vacancy
+
+@{
+    ViewData["Title"] = $"{Model.Title} — Кар'єрний портал";
+}
+
+<div class="container py-4" style="max-width: 1040px;">
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a asp-action="Index" class="text-decoration-none">Кар'єрний портал</a></li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
+        </ol>
+    </nav>
+
+    <!-- Header info -->
+    <div class="card p-4 p-md-5 mb-4 bg-surface border">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge-soft badge-soft-blue">Відкрита вакансія</span>
+                    @if (Model.SalaryMin > 0 || Model.SalaryMax > 0)
+                    {
+                        <span class="badge-soft badge-soft-emerald font-monospace">@Model.SalaryMin.ToString("N0") – @Model.SalaryMax.ToString("N0") ₴</span>
+                    }
+                    <span class="text-muted small">Опубліковано @Model.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                </div>
+                <h1 class="h2 fw-bold mb-2">@Model.Title</h1>
+                <p class="text-muted mb-0">Приєднуйтесь до нашої команди та реалізуйте свій потенціал.</p>
+            </div>
+            <a href="#applySection" class="btn btn-primary px-4">
+                Подати резюме зараз
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Job Details Left Column -->
+        <div class="col-lg-7">
+            <div class="card p-4 bg-surface border mb-4">
+                <h2 class="h5 fw-bold mb-3">Опис позиції та завдання</h2>
+                <div class="vacancy-description text-muted" style="white-space: pre-wrap; line-height: 1.6;">
+                    @(string.IsNullOrWhiteSpace(Model.Description) ? "Детальний опис позиції узгоджується під час першої співбесіди з технічною командою." : Model.Description)
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.Requirements))
+            {
+                <div class="card p-4 bg-surface border mb-4">
+                    <h2 class="h5 fw-bold mb-3">Вимоги до кандидата</h2>
+                    <div class="vacancy-requirements text-muted" style="white-space: pre-wrap; line-height: 1.6;">
+                        @Model.Requirements
+                    </div>
+                </div>
+            }
+
+            <div class="card p-4 bg-surface border">
+                <h2 class="h5 fw-bold mb-3">Що ми пропонуємо</h2>
+                <ul class="list-unstyled text-muted small mb-0 d-flex flex-column gap-2">
+                    <li class="d-flex align-items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Конкурентна офіційна заробітна плата з регулярними переглядами.</span>
+                    </li>
+                    <li class="d-flex align-items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Гнучкий графік та можливість гібридної або віддаленої роботи.</span>
+                    </li>
+                    <li class="d-flex align-items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Сучасний технологічний стек, відсутність застарілого legacy-коду.</span>
+                    </li>
+                    <li class="d-flex align-items-center gap-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-emerald flex-shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
+                        <span>Оплачуване профільне навчання, сертифікації та відпустки.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Application Form Right Column -->
+        <div class="col-lg-5" id="applySection">
+            <div class="card p-4 bg-surface border sticky-top" style="top: 2rem;">
+                <h2 class="h5 fw-bold mb-1">Подати відгук</h2>
+                <p class="text-muted small mb-4">Заповніть форму нижче. Наша HR-команда перегляне вашу заявку протягом 24 годин.</p>
+
+                <form asp-action="Apply" method="post" enctype="multipart/form-data">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="vacancyId" value="@Model.Id" />
+
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger small p-2 mb-3">
+                            @Html.ValidationSummary(false, "", new { @class = "mb-0" })
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label for="applyFullName" class="form-label small fw-semibold text-uppercase" style="font-size:0.75rem;">Ваше ім'я та прізвище <span class="text-danger">*</span></label>
+                        <input type="text" id="applyFullName" name="fullName" class="form-control" placeholder="Олександр Петренко" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="applyEmail" class="form-label small fw-semibold text-uppercase" style="font-size:0.75rem;">Електронна пошта <span class="text-danger">*</span></label>
+                        <input type="email" id="applyEmail" name="email" class="form-control" placeholder="candidate@example.com" required />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="applyPhone" class="form-label small fw-semibold text-uppercase" style="font-size:0.75rem;">Контактний телефон</label>
+                        <input type="tel" id="applyPhone" name="phone" class="form-control" placeholder="+380 50 123 4567" />
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="applyExp" class="form-label small fw-semibold text-uppercase" style="font-size:0.75rem;">Досвід (років)</label>
+                            <input type="number" id="applyExp" name="experienceYears" class="form-control" min="0" max="40" placeholder="3" />
+                        </div>
+                        <div class="col-6">
+                            <label for="applySkills" class="form-label small fw-semibold text-uppercase" style="font-size:0.75rem;">Основний стек</label>
+                            <input type="text" id="applySkills" name="skills" class="form-control" placeholder="C#, .NET, React" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="applyResume" class="form-label small fw-semibold text-uppercase" style="font-size:0.75rem;">Файл резюме (PDF або DOCX)</label>
+                        <input type="file" id="applyResume" name="resumeFile" class="form-control form-control-sm" accept=".pdf,.doc,.docx" />
+                        <div class="form-text small" style="font-size:0.72rem;">Формати: PDF, DOC, DOCX до 5 МБ. AI-модуль автоматично проаналізує стек.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="applyCoverLetter" class="form-label small fw-semibold text-uppercase" style="font-size:0.75rem;">Коротке повідомлення / супровідний лист</label>
+                        <textarea id="applyCoverLetter" name="coverLetter" class="form-control" rows="3" placeholder="Розкажіть коротко про себе та чому вам цікава ця вакансія..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                        Надіслати заявку
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -30,6 +30,10 @@ public class Application : IValidatableObject
 
     public Vacancy? Vacancy { get; set; }
 
+    public int? StageId { get; set; }
+
+    public PipelineStage? Stage { get; set; }
+
     public ICollection<Interview> Interviews { get; set; } = new List<Interview>();
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

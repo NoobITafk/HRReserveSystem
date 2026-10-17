@@ -16,6 +16,8 @@ public static class SeedData
 
         var recruiters = await EnsureRecruitersAsync(context, passwordHasher);
         await identitySync.SyncRecruitersAsync(recruiters);
+        await EnsurePipelineStagesAsync(context);
+        await EnsureDefaultNotificationsAsync(context);
 
         var databaseHasHrData =
             await context.Candidates.AnyAsync() ||
@@ -406,16 +408,156 @@ public static class SeedData
                 {
                     await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Candidates\" ADD COLUMN \"AvatarUrl\" TEXT;");
                 }
+
+                var appCols = await context.Database.SqlQueryRaw<string>("SELECT name FROM pragma_table_info('Applications');").ToListAsync();
+                if (!appCols.Contains("StageId"))
+                {
+                    await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Applications\" ADD COLUMN \"StageId\" INTEGER;");
+                }
+
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS ""PipelineStages"" (
+                        ""Id"" INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ""VacancyId"" INTEGER NULL,
+                        ""Name"" TEXT NOT NULL,
+                        ""Code"" TEXT NOT NULL,
+                        ""Order"" INTEGER NOT NULL,
+                        ""ColorBadge"" TEXT NOT NULL,
+                        ""IsTerminal"" INTEGER NOT NULL DEFAULT 0,
+                        ""IsDefault"" INTEGER NOT NULL DEFAULT 0
+                    );
+                    CREATE TABLE IF NOT EXISTS ""CandidateCommunications"" (
+                        ""Id"" INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ""CandidateId"" INTEGER NOT NULL,
+                        ""SenderName"" TEXT NOT NULL,
+                        ""RecipientEmail"" TEXT NOT NULL,
+                        ""Subject"" TEXT NOT NULL,
+                        ""Body"" TEXT NOT NULL,
+                        ""Channel"" TEXT NOT NULL,
+                        ""SentAt"" TEXT NOT NULL,
+                        ""Status"" TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS ""AppNotifications"" (
+                        ""Id"" INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ""RecruiterId"" TEXT NULL,
+                        ""Title"" TEXT NOT NULL,
+                        ""Message"" TEXT NOT NULL,
+                        ""TargetUrl"" TEXT NOT NULL,
+                        ""IsRead"" INTEGER NOT NULL DEFAULT 0,
+                        ""CreatedAt"" TEXT NOT NULL
+                    );
+                ");
             }
             else
             {
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Recruiters\" ADD COLUMN IF NOT EXISTS \"AvatarUrl\" text;");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Candidates\" ADD COLUMN IF NOT EXISTS \"AvatarUrl\" text;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Applications\" ADD COLUMN IF NOT EXISTS \"StageId\" integer;");
+
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE TABLE IF NOT EXISTS ""PipelineStages"" (
+                        ""Id"" serial PRIMARY KEY,
+                        ""VacancyId"" integer NULL,
+                        ""Name"" text NOT NULL,
+                        ""Code"" text NOT NULL,
+                        ""Order"" integer NOT NULL,
+                        ""ColorBadge"" text NOT NULL,
+                        ""IsTerminal"" boolean NOT NULL DEFAULT false,
+                        ""IsDefault"" boolean NOT NULL DEFAULT false
+                    );
+                    CREATE TABLE IF NOT EXISTS ""CandidateCommunications"" (
+                        ""Id"" serial PRIMARY KEY,
+                        ""CandidateId"" integer NOT NULL,
+                        ""SenderName"" text NOT NULL,
+                        ""RecipientEmail"" text NOT NULL,
+                        ""Subject"" text NOT NULL,
+                        ""Body"" text NOT NULL,
+                        ""Channel"" text NOT NULL,
+                        ""SentAt"" timestamp NOT NULL,
+                        ""Status"" text NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS ""AppNotifications"" (
+                        ""Id"" serial PRIMARY KEY,
+                        ""RecruiterId"" text NULL,
+                        ""Title"" text NOT NULL,
+                        ""Message"" text NOT NULL,
+                        ""TargetUrl"" text NOT NULL,
+                        ""IsRead"" boolean NOT NULL DEFAULT false,
+                        ""CreatedAt"" timestamp NOT NULL
+                    );
+                ");
             }
         }
         catch
         {
             // Ignore in-memory test databases or if already migrated
+        }
+    }
+
+    private static async Task EnsurePipelineStagesAsync(ApplicationDbContext context)
+    {
+        try
+        {
+            if (await context.PipelineStages.AnyAsync())
+            {
+                return;
+            }
+
+            var defaultStages = new List<PipelineStage>
+            {
+                new() { Name = "Новий", Code = "New", Order = 1, ColorBadge = "badge-soft-slate", IsDefault = true, IsTerminal = false },
+                new() { Name = "HR-скринінг", Code = "Screening", Order = 2, ColorBadge = "badge-soft-cyan", IsDefault = true, IsTerminal = false },
+                new() { Name = "Співбесіда", Code = "Interview", Order = 3, ColorBadge = "badge-soft-amber", IsDefault = true, IsTerminal = false },
+                new() { Name = "Тестове завдання", Code = "TestTask", Order = 4, ColorBadge = "badge-soft-blue", IsDefault = true, IsTerminal = false },
+                new() { Name = "Оффер", Code = "Offer", Order = 5, ColorBadge = "badge-soft-emerald", IsDefault = true, IsTerminal = false },
+                new() { Name = "Найнятий", Code = "Hired", Order = 6, ColorBadge = "badge-soft-emerald", IsDefault = true, IsTerminal = true },
+                new() { Name = "Відхилено", Code = "Rejected", Order = 7, ColorBadge = "badge-soft-rose", IsDefault = true, IsTerminal = true }
+            };
+
+            context.PipelineStages.AddRange(defaultStages);
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            // Ignore if tables not ready in test harness
+        }
+    }
+
+    private static async Task EnsureDefaultNotificationsAsync(ApplicationDbContext context)
+    {
+        try
+        {
+            if (await context.AppNotifications.AnyAsync())
+            {
+                return;
+            }
+
+            var notifications = new List<AppNotification>
+            {
+                new()
+                {
+                    Title = "Заплановано первинні співбесіди",
+                    Message = "На цьому тижні призначено технічні зустрічі з кандидатами кадрового резерву.",
+                    TargetUrl = "/Interviews/Calendar",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow.AddHours(-2)
+                },
+                new()
+                {
+                    Title = "Очікується експертний відгук",
+                    Message = "Будь ласка, зафіксуйте оцінку та рекомендацію за підсумками співбесіди.",
+                    TargetUrl = "/InterviewFeedbacks/Create",
+                    IsRead = false,
+                    CreatedAt = DateTime.UtcNow.AddHours(-5)
+                }
+            };
+
+            context.AppNotifications.AddRange(notifications);
+            await context.SaveChangesAsync();
+        }
+        catch
+        {
+            // Ignore if tables not ready in test harness
         }
     }
 }

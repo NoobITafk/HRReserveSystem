@@ -4,6 +4,7 @@
     ViewData["Title"] = "Канбан-дошка кандидатів";
     var currentVacancyId = ViewData["VacancyId"] as int?;
     var vacancies = ViewData["Vacancies"] as SelectList;
+    var pipelineStages = ViewData["PipelineStages"] as List<HRReserveSystem.Models.PipelineStage>;
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -66,19 +67,34 @@
 <!-- Kanban Board Container -->
 <div class="kanban-board-wrapper">
     <div class="kanban-board">
-        @foreach (var status in HrOptions.ApplicationStatuses)
+        @{
+            var stageColumns = (pipelineStages != null && pipelineStages.Count > 0)
+                ? pipelineStages.Select(s => new {
+                    Status = s.Code,
+                    StageId = (int?)s.Id,
+                    Title = s.Name,
+                    ColorClass = s.Code == "Hired" ? "bg-emerald" : s.Code == "Rejected" ? "bg-rose" : "bg-primary"
+                }).ToList()
+                : HrOptions.ApplicationStatuses.Select(s => new {
+                    Status = s,
+                    StageId = (int?)null,
+                    Title = HrOptions.ApplicationStatusLabel(s),
+                    ColorClass = s == "Hired" ? "bg-emerald" : s == "Rejected" ? "bg-rose" : "bg-primary"
+                }).ToList();
+        }
+        @foreach (var stage in stageColumns)
         {
-            var itemsInStage = Model.Where(a => a.Status == status).ToList();
-            <div class="kanban-column" data-status="@status">
+            var itemsInStage = Model.Where(a => (stage.StageId.HasValue && a.StageId == stage.StageId) || a.Status == stage.Status).ToList();
+            <div class="kanban-column" data-status="@stage.Status" data-stage-id="@(stage.StageId?.ToString() ?? "")">
                 <div class="kanban-column-header">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="kanban-status-dot @(status == "Hired" ? "bg-emerald" : status == "Rejected" ? "bg-rose" : "bg-primary")"></span>
-                        <strong class="kanban-column-title">@HrOptions.ApplicationStatusLabel(status)</strong>
+                        <span class="kanban-status-dot @stage.ColorClass"></span>
+                        <strong class="kanban-column-title">@stage.Title</strong>
                     </div>
-                    <span class="badge-soft badge-soft-slate kanban-count" data-count-status="@status">@itemsInStage.Count</span>
+                    <span class="badge-soft badge-soft-slate kanban-count" data-count-status="@stage.Status">@itemsInStage.Count</span>
                 </div>
 
-                <div class="kanban-column-body" data-dropzone="true" data-status="@status">
+                <div class="kanban-column-body" data-dropzone="true" data-status="@stage.Status" data-stage-id="@(stage.StageId?.ToString() ?? "")">
                     @foreach (var app in itemsInStage)
                     {
                         var candidate = app.Candidate;
@@ -136,7 +152,7 @@
                                     <a class="btn btn-xs btn-icon btn-outline-secondary" asp-controller="Interviews" asp-action="Create" asp-route-applicationId="@app.Id" title="Призначити співбесіду" aria-label="Призначити співбесіду">
                                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                                     </a>
-                                    <button type="button" class="btn btn-xs btn-icon btn-outline-secondary" data-outreach-btn data-candidate-name="@candidate?.FullName" data-candidate-email="@candidate?.Email" data-vacancy="@vacancy?.Title" title="Шаблони зв'язку" aria-label="Зв'язатися">
+                                    <button type="button" class="btn btn-xs btn-icon btn-outline-secondary" data-outreach-btn data-candidate-id="@app.CandidateId" data-candidate-name="@candidate?.FullName" data-candidate-email="@candidate?.Email" data-vacancy="@vacancy?.Title" title="Шаблони зв'язку" aria-label="Зв'язатися">
                                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                                     </button>
                                 </div>

@@ -1,14 +1,19 @@
 using HRReserveSystem.Data;
+using HRReserveSystem.Hubs;
 using HRReserveSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter")]
-public class ApplicationsController(ApplicationDbContext context) : Controller
+public class ApplicationsController(
+    ApplicationDbContext context,
+    IHubContext<KanbanHub> hubContext,
+    ILogger<ApplicationsController> logger) : Controller
 {
     public async Task<IActionResult> Index(string? status)
     {
@@ -218,7 +223,8 @@ public class ApplicationsController(ApplicationDbContext context) : Controller
             .AsNoTracking()
             .Include(a => a.Candidate)
             .Include(a => a.Vacancy)
-            .Include(a => a.Interviews);
+            .Include(a => a.Interviews)
+            .Include(a => a.Stage);
 
         if (vacancyId.HasValue && vacancyId.Value > 0)
         {
@@ -235,8 +241,15 @@ public class ApplicationsController(ApplicationDbContext context) : Controller
             .OrderBy(v => v.Title)
             .ToListAsync();
 
+        var stages = await context.PipelineStages
+            .AsNoTracking()
+            .Where(s => s.VacancyId == vacancyId || s.IsDefault)
+            .OrderBy(s => s.Order)
+            .ToListAsync();
+
         ViewData["VacancyId"] = vacancyId;
         ViewData["Vacancies"] = new SelectList(vacancies, "Id", "Title", vacancyId);
+        ViewData["PipelineStages"] = stages;
 
         return View(applications);
     }
@@ -259,13 +272,51 @@ public class ApplicationsController(ApplicationDbContext context) : Controller
         }
 
         application.Status = request.Status;
+        if (request.StageId.HasValue && request.StageId.Value > 0)
+        {
+            application.StageId = request.StageId.Value;
+        }
+
+        if (request.Status == "Offer" || request.Status == "Hired")
+        {
+            context.AppNotifications.Add(new AppNotification
+            {
+                Title = request.Status == "Hired" ? "Кандидата прийнято на роботу!" : "Кандидату виставлено офер!",
+                Message = $"{application.Candidate?.FullName ?? "Кандидата"} переведено на етап «{HrOptions.ApplicationStatusLabel(request.Status)}»",
+                TargetUrl = $"/Applications/Kanban?vacancyId={application.VacancyId}",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
         await context.SaveChangesAsync();
+
+        try
+        {
+            var payload = new
+            {
+                id = application.Id,
+                candidateName = application.Candidate?.FullName,
+                vacancyId = application.VacancyId,
+                status = application.Status,
+                stageId = application.StageId,
+                updatedBy = User.Identity?.Name ?? "Рекрутер"
+            };
+
+            await hubContext.Clients.Group($"vacancy-{application.VacancyId}").SendAsync("ApplicationMoved", payload);
+            await hubContext.Clients.Group("vacancy-all").SendAsync("ApplicationMoved", payload);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to broadcast ApplicationMoved via SignalR");
+        }
 
         return Json(new
         {
             success = true,
             id = application.Id,
             status = application.Status,
+            stageId = application.StageId,
             statusLabel = HrOptions.ApplicationStatusLabel(application.Status),
             statusBadge = HrOptions.ApplicationStatusBadge(application.Status),
             candidateName = application.Candidate?.FullName,
@@ -282,4 +333,4 @@ public class ApplicationsController(ApplicationDbContext context) : Controller
     }
 }
 
-public record UpdateStatusAjaxRequest(int Id, string Status);
+public record UpdateStatusAjaxRequest(int Id, string Status, int? StageId = null);

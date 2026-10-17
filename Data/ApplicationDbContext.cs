@@ -21,6 +21,12 @@ public class ApplicationDbContext(DbContextOptions options) : IdentityDbContext<
 
     public DbSet<Recruiter> Recruiters => Set<Recruiter>();
 
+    public DbSet<PipelineStage> PipelineStages => Set<PipelineStage>();
+
+    public DbSet<CandidateCommunication> CandidateCommunications => Set<CandidateCommunication>();
+
+    public DbSet<AppNotification> AppNotifications => Set<AppNotification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

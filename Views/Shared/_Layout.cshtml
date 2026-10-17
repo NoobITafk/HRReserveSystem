@@ -143,6 +143,12 @@
                         </span>
                         <span>Про платформу</span>
                     </a>
+                    <a class="sidebar-link @(activeClass("Careers", ""))" asp-area="" asp-controller="Careers" asp-action="Index" target="_blank" rel="noopener">
+                        <span class="sidebar-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        </span>
+                        <span>Кар'єрний портал</span>
+                    </a>
                 </nav>
 
                 <div class="sidebar-footer">
@@ -508,6 +514,7 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/signalr/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

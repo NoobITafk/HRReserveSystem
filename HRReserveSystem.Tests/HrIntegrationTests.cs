@@ -978,6 +978,108 @@ Senior .NET Developer, 7 років досвіду
         Assert.Contains("\"experienceYears\":7", json);
     }
 
+    [Fact]
+    public async Task Careers_PublicBoard_AllowsBrowsingAndApplyingSuccessfully()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        // 1. Browse public careers board anonymously
+        var indexResponse = await client.GetAsync("/Careers");
+        Assert.Equal(HttpStatusCode.OK, indexResponse.StatusCode);
+        var indexHtml = await indexResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Приєднуйтесь до нашої команди", indexHtml);
+
+        // 2. View details of first vacancy
+        var detailsResponse = await client.GetAsync("/Careers/Details/1");
+        Assert.Equal(HttpStatusCode.OK, detailsResponse.StatusCode);
+        var detailsHtml = await detailsResponse.Content.ReadAsStringAsync();
+        Assert.Contains("Подати відгук", detailsHtml);
+
+        // 3. Submit application
+        var applyFields = new Dictionary<string, string>
+        {
+            ["vacancyId"] = "1",
+            ["fullName"] = "Максим Карпенко",
+            ["email"] = "karpenko.careers@example.com",
+            ["phone"] = "+380501112233",
+            ["experienceYears"] = "4",
+            ["skills"] = "C#, ASP.NET Core, PostgreSQL",
+            ["coverLetter"] = "Доброго дня, зацікавила вакансія!"
+        };
+
+        var applyResponse = await PostFormAsync(client, "/Careers/Details/1", "/Careers/Apply", applyFields);
+        Assert.Equal(HttpStatusCode.Redirect, applyResponse.StatusCode);
+        Assert.Contains("/Careers/Success", applyResponse.Headers.Location?.OriginalString);
+
+        // 4. Verify candidate and application in DB
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var candidate = await db.Candidates.FirstOrDefaultAsync(c => c.Email == "karpenko.careers@example.com");
+        Assert.NotNull(candidate);
+        Assert.Equal("Максим Карпенко", candidate.FullName);
+
+        var application = await db.Applications.FirstOrDefaultAsync(a => a.CandidateId == candidate.Id && a.VacancyId == 1);
+        Assert.NotNull(application);
+        Assert.Equal("New", application.Status);
+
+        var notification = await db.AppNotifications.FirstOrDefaultAsync(n => n.Message.Contains(candidate.FullName));
+        Assert.NotNull(notification);
+    }
+
+    [Fact]
+    public async Task Notifications_RecruiterCanFetchAndMarkAsRead()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        // 1. Fetch unread notifications
+        var getResponse = await client.GetAsync("/Notifications/GetUnread");
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        var json = await getResponse.Content.ReadAsStringAsync();
+        Assert.Contains("\"count\":", json);
+
+        // 2. Mark all as read
+        var markResponse = await client.PostAsync("/Notifications/MarkAllAsRead", null);
+        Assert.Equal(HttpStatusCode.OK, markResponse.StatusCode);
+
+        // 3. Verify count is now 0
+        var getAfterResponse = await client.GetAsync("/Notifications/GetUnread");
+        var afterJson = await getAfterResponse.Content.ReadAsStringAsync();
+        Assert.Contains("\"count\":0", afterJson);
+    }
+
+    [Fact]
+    public async Task Candidates_SendMessageAjax_RecordsCommunicationAndNotification()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var payload = new
+        {
+            CandidateId = 1,
+            Subject = "Запрошення на HR-скринінг",
+            Body = "Доброго дня! Будемо раді поспілкуватися на короткій онлайн-зустрічі.",
+            Channel = "Email",
+            TemplateType = "screening"
+        };
+
+        var response = await client.PostAsync("/Candidates/SendMessageAjax", JsonContent.Create(payload));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"success\":true", json);
+
+        // Verify in database
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var comm = await db.CandidateCommunications.FirstOrDefaultAsync(c => c.CandidateId == 1 && c.Subject == "Запрошення на HR-скринінг");
+        Assert.NotNull(comm);
+        Assert.Equal("Email", comm.Channel);
+        Assert.Equal("Sent", comm.Status);
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

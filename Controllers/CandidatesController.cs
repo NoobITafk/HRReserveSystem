@@ -14,7 +14,9 @@ namespace HRReserveSystem.Controllers;
 public class CandidatesController(
     ApplicationDbContext context,
     IWebHostEnvironment environment,
-    ResumeIntelligenceService resumeIntelligence) : Controller
+    ResumeIntelligenceService resumeIntelligence,
+    IEmailNotificationService emailService,
+    ILogger<CandidatesController> logger) : Controller
 {
     private const long MaxResumeFileSize = 5 * 1024 * 1024;
     private const long MaxAvatarFileSize = 5 * 1024 * 1024;
@@ -80,6 +82,7 @@ public class CandidatesController(
             .Include(item => item.Applications)
                 .ThenInclude(application => application.Vacancy)
             .Include(item => item.SoftSkillAssessments)
+            .Include(item => item.Communications)
             .FirstOrDefaultAsync(item => item.Id == id);
 
         if (candidate is null)
@@ -547,6 +550,7 @@ public class CandidatesController(
             .Include(c => c.Applications)
                 .ThenInclude(a => a.Vacancy)
             .Include(c => c.SoftSkillAssessments)
+            .Include(c => c.Communications)
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
         if (candidate is null)
@@ -590,6 +594,22 @@ public class CandidatesController(
             };
         }
 
+        var communications = candidate.Communications
+            .OrderByDescending(c => c.SentAt)
+            .Take(10)
+            .Select(c => new
+            {
+                id = c.Id,
+                senderName = c.SenderName,
+                recipientEmail = c.RecipientEmail,
+                subject = c.Subject,
+                body = c.Body,
+                channel = c.Channel,
+                sentAt = c.SentAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+                status = c.Status
+            })
+            .ToList();
+
         return Json(new
         {
             success = true,
@@ -615,7 +635,82 @@ public class CandidatesController(
                 recruiterComment = a.RecruiterComment ?? ""
             }),
             interviews = interviews,
-            softSkills = softSkillsData
+            softSkills = softSkillsData,
+            communications = communications
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SendMessageAjax([FromBody] SendCandidateMessageRequest request)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Body))
+        {
+            return BadRequest(new { success = false, message = "Тема та текст повідомлення обов'язкові для заповнення." });
+        }
+
+        var candidate = await context.Candidates
+            .FirstOrDefaultAsync(c => c.Id == request.CandidateId && !c.IsDeleted);
+
+        if (candidate is null)
+        {
+            return NotFound(new { success = false, message = "Кандидата не знайдено." });
+        }
+
+        if (string.IsNullOrWhiteSpace(candidate.Email))
+        {
+            return BadRequest(new { success = false, message = "У кандидата відсутня електронна пошта." });
+        }
+
+        try
+        {
+            await emailService.SendCandidateMessageAsync(candidate.Email, candidate.FullName, request.Subject.Trim(), request.Body.Trim());
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Candidate email sending encountered warning");
+        }
+
+        var senderName = User.Identity?.Name ?? "Рекрутер";
+        var communication = new CandidateCommunication
+        {
+            CandidateId = candidate.Id,
+            SenderName = senderName,
+            RecipientEmail = candidate.Email,
+            Subject = request.Subject.Trim(),
+            Body = request.Body.Trim(),
+            Channel = string.IsNullOrWhiteSpace(request.Channel) ? "Email" : request.Channel,
+            SentAt = DateTime.UtcNow,
+            Status = "Sent"
+        };
+
+        context.CandidateCommunications.Add(communication);
+
+        context.AppNotifications.Add(new AppNotification
+        {
+            Title = $"Надіслано листа кандидату {candidate.FullName}",
+            Message = $"Тема: {request.Subject.Trim()}",
+            TargetUrl = $"/Candidates/Details/{candidate.Id}",
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            message = $"Лист для {candidate.FullName} успішно надіслано та збережено в історії комунікацій.",
+            communication = new
+            {
+                id = communication.Id,
+                senderName = communication.SenderName,
+                recipientEmail = communication.RecipientEmail,
+                subject = communication.Subject,
+                body = communication.Body,
+                channel = communication.Channel,
+                sentAt = communication.SentAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+                status = communication.Status
+            }
         });
     }
 
@@ -758,3 +853,4 @@ public class CandidatesController(
 
 public record AddCandidateNoteRequest(int CandidateId, int? ApplicationId, string Note);
 public record QuickImportParseRequest(string RawText);
+public record SendCandidateMessageRequest(int CandidateId, string Subject, string Body, string Channel, string? TemplateType);

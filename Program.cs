@@ -1,4 +1,5 @@
 using HRReserveSystem.Data;
+using HRReserveSystem.Hubs;
 using HRReserveSystem.Models;
 using HRReserveSystem.Services;
 using Microsoft.AspNetCore.DataProtection;
@@ -92,6 +93,7 @@ builder.Services.ConfigureApplicationCookie(options =>
         return Task.CompletedTask;
     };
 });
+builder.Services.AddSignalR();
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
@@ -138,6 +140,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = check => check.Tags.Contains("ready")
 });
 
+app.MapHub<KanbanHub>("/hubs/kanban");
 app.MapControllers();
 
 app.MapControllerRoute(

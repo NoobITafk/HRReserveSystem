@@ -1,0 +1,102 @@
+@model IEnumerable<HRReserveSystem.Models.Vacancy>
+
+@{
+    ViewData["Title"] = "Відкриті вакансії — Кар'єрний портал";
+    var currentSearch = ViewBag.Search as string;
+}
+
+<div class="careers-portal-hero py-5 text-center border-bottom bg-surface-muted mb-5">
+    <div class="container" style="max-width: 800px;">
+        <span class="badge-soft badge-soft-emerald px-3 py-1 text-uppercase fw-bold mb-3" style="letter-spacing: 0.05em; font-size: 0.75rem;">Кар'єра та розвиток</span>
+        <h1 class="display-5 fw-bold mb-3">Приєднуйтесь до нашої команди</h1>
+        <p class="lead text-muted mb-4">
+            Ми створюємо провідні технологічні та продуктові рішення. Перегляньте актуальні позиції та зробіть наступний крок у кар'єрі.
+        </p>
+
+        <!-- Search Bar -->
+        <form method="get" asp-action="Index" class="card p-2 bg-surface border shadow-sm">
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-9">
+                    <div class="input-group">
+                        <span class="input-group-text bg-transparent border-0 text-muted">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        </span>
+                        <input type="text" name="search" value="@currentSearch" class="form-control border-0 shadow-none" placeholder="Пошук за назвою вакансії або вимогами..." />
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">Шукати вакансії</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="container pb-5" style="max-width: 1040px;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 fw-bold mb-0">Актуальні вакансії</h2>
+            <p class="text-muted small mb-0">Всього відкрито вакансій: @Model.Count()</p>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(currentSearch))
+        {
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Скинути пошук</a>
+        }
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card p-5 text-center bg-surface border">
+            <div class="mb-3 text-muted">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="20" height="14" x="2" y="7" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </div>
+            <h3 class="h5 fw-bold">Наразі немає відкритих вакансій за вашим запитом</h3>
+            <p class="text-muted small mb-3">Спробуйте змінити критерії пошуку або перегляньте всі вакансії пізніше.</p>
+            <div>
+                <a asp-action="Index" class="btn btn-sm btn-outline-primary">Переглянути всі вакансії</a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var vacancy in Model)
+            {
+                <div class="col-12">
+                    <div class="card p-4 bg-surface border hover-elevate transition-all">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                    <span class="badge-soft badge-soft-blue">Відкрита позиція</span>
+                                    @if (vacancy.SalaryMin > 0 || vacancy.SalaryMax > 0)
+                                    {
+                                        <span class="badge-soft badge-soft-emerald font-monospace">
+                                            @vacancy.SalaryMin.ToString("N0") – @vacancy.SalaryMax.ToString("N0") ₴
+                                        </span>
+                                    }
+                                    <span class="text-muted small">Опубліковано @vacancy.CreatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                                </div>
+                                <h3 class="h5 fw-bold mb-2">
+                                    <a asp-action="Details" asp-route-id="@vacancy.Id" class="text-decoration-none text-body stretched-link-title">
+                                        @vacancy.Title
+                                    </a>
+                                </h3>
+                                @if (!string.IsNullOrWhiteSpace(vacancy.Description))
+                                {
+                                    var descSnippet = vacancy.Description.Length > 220 ? vacancy.Description.Substring(0, 220) + "..." : vacancy.Description;
+                                    <p class="text-muted small mb-0" style="line-height: 1.5;">@descSnippet</p>
+                                }
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                <a asp-action="Details" asp-route-id="@vacancy.Id" class="btn btn-sm btn-primary px-3">
+                                    Переглянути та податися
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="ms-1"><path d="m9 18 6-6-6-6"/></svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

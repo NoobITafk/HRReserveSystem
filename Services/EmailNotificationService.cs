@@ -25,6 +25,22 @@ public class EmailNotificationService(
         return SendInterviewNotificationAsync(interviewId, "Оновлено співбесіду");
     }
 
+    public async Task SendCandidateMessageAsync(string toEmail, string candidateName, string subject, string body)
+    {
+        if (string.IsNullOrWhiteSpace(toEmail))
+        {
+            return;
+        }
+
+        var recipients = new[] { toEmail };
+        if (!string.IsNullOrWhiteSpace(emailOptions.RedirectAllTo))
+        {
+            recipients = [emailOptions.RedirectAllTo];
+        }
+
+        await DeliverAsync(recipients, subject, body);
+    }
+
     private async Task SendInterviewNotificationAsync(int interviewId, string subjectPrefix)
     {
         var interview = await context.Interviews
