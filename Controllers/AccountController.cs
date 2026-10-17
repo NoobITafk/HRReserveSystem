@@ -35,6 +35,7 @@ public class AccountController(
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> Login(LoginViewModel model)
     {
         ViewData["DemoUsers"] = await demoUserService.GetDemoUsersAsync();

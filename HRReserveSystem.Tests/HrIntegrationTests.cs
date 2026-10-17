@@ -1389,6 +1389,39 @@ Senior .NET Developer, 7 років досвіду
         Assert.Contains(outboxIndexes, idx => idx.Properties.Any(p => p.Name == "Status") && idx.Properties.Any(p => p.Name == "CreatedAt"));
     }
 
+    [Fact]
+    public async Task AuditLogs_Outbox_Endpoint_Returns_View_With_Metrics()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "admin", "admin123");
+
+        var response = await client.GetAsync("/AuditLogs/Outbox");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Черга пошти (Transactional Outbox)", html);
+        Assert.Contains("Очікують відправки", html);
+    }
+
+    [Fact]
+    public async Task CandidateApplicationService_Moves_Stage_Cleanly()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var appService = scope.ServiceProvider.GetRequiredService<ICandidateApplicationService>();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var firstApp = await db.Applications.FirstAsync();
+        var (success, error) = await appService.MoveApplicationStageAsync(firstApp.Id, "Interview", null);
+
+        Assert.True(success);
+        Assert.Null(error);
+
+        var updated = await db.Applications.FirstAsync(a => a.Id == firstApp.Id);
+        Assert.Equal("Interview", updated.Status);
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

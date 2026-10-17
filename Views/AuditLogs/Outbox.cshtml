@@ -1,0 +1,183 @@
+@model IEnumerable<HRReserveSystem.Models.EmailOutboxMessage>
+
+@{
+    ViewData["Title"] = "Черга відправки пошти (Outbox)";
+    var currentStatus = ViewBag.CurrentStatus as string;
+    var currentPage = (int)(ViewBag.CurrentPage ?? 1);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var totalItems = (int)(ViewBag.TotalItems ?? 0);
+    var pendingCount = (int)(ViewBag.PendingCount ?? 0);
+    var sentCount = (int)(ViewBag.SentCount ?? 0);
+    var failedCount = (int)(ViewBag.FailedCount ?? 0);
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge-soft badge-soft-blue">Transactional Outbox Pattern</span>
+            <span class="text-muted small">Всього повідомлень: @totalItems</span>
+        </div>
+        <h1 class="h3 fw-bold mb-0">Черга пошти (Transactional Outbox)</h1>
+        <p class="text-muted small mb-0">Моніторинг доставки листів, перегляд статусів та перезапуск збійних відправок</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Журнал дій</a>
+        <a asp-action="Outbox" class="btn btn-sm btn-primary">Черга пошти (Outbox)</a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Metrics KPI Bar -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-4">
+        <div class="card p-3 bg-surface border">
+            <div class="text-muted small">Очікують відправки</div>
+            <div class="h3 fw-bold text-amber mb-0">@pendingCount</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-4">
+        <div class="card p-3 bg-surface border">
+            <div class="text-muted small">Успішно доставлено</div>
+            <div class="h3 fw-bold text-emerald mb-0">@sentCount</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-4">
+        <div class="card p-3 bg-surface border">
+            <div class="text-muted small">Помилки відправки</div>
+            <div class="h3 fw-bold text-rose mb-0">@failedCount</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card p-3 mb-4 bg-surface border">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <span class="small text-muted me-2">Фільтр:</span>
+        <a asp-action="Outbox" class="btn btn-xs @(string.IsNullOrEmpty(currentStatus) ? "btn-primary" : "btn-outline-secondary")">Усі</a>
+        <a asp-action="Outbox" asp-route-status="Pending" class="btn btn-xs @(currentStatus == "Pending" ? "btn-primary" : "btn-outline-secondary")">В очікуванні</a>
+        <a asp-action="Outbox" asp-route-status="Sent" class="btn btn-xs @(currentStatus == "Sent" ? "btn-primary" : "btn-outline-secondary")">Доставлені</a>
+        <a asp-action="Outbox" asp-route-status="Failed" class="btn btn-xs @(currentStatus == "Failed" ? "btn-primary" : "btn-outline-secondary")">З помилкою</a>
+        <a asp-action="Outbox" asp-route-status="DeadLetter" class="btn btn-xs @(currentStatus == "DeadLetter" ? "btn-primary" : "btn-outline-secondary")">DeadLetter (3+ спроби)</a>
+    </div>
+</div>
+
+<!-- Messages Table -->
+<div class="card bg-surface border overflow-hidden">
+    @if (Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 80px;">ID</th>
+                        <th style="width: 170px;">Час створення</th>
+                        <th>Отримувач</th>
+                        <th>Тема листа</th>
+                        <th>Статус</th>
+                        <th>Спроби</th>
+                        <th>Деталі / Помилка</th>
+                        <th style="width: 120px;">Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var msg in Model)
+                    {
+                        var statusBadge = msg.Status switch
+                        {
+                            "Sent" => "badge-soft-emerald",
+                            "Processing" => "badge-soft-blue",
+                            "Pending" => "badge-soft-amber",
+                            "Failed" => "badge-soft-rose",
+                            "DeadLetter" => "badge-soft-rose",
+                            _ => "badge-soft-slate"
+                        };
+
+                        var statusLabel = msg.Status switch
+                        {
+                            "Sent" => "Доставлено",
+                            "Processing" => "Обробляється",
+                            "Pending" => "В черзі",
+                            "Failed" => "Збій",
+                            "DeadLetter" => "Вичерпано спроби",
+                            _ => msg.Status
+                        };
+
+                        <tr>
+                            <td class="font-monospace small">#@msg.Id</td>
+                            <td class="font-monospace small text-muted">@msg.CreatedAt.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                            <td>
+                                <strong class="d-block small">@msg.RecipientName</strong>
+                                <span class="font-monospace small text-muted">@msg.RecipientEmail</span>
+                            </td>
+                            <td class="small fw-semibold">@msg.Subject</td>
+                            <td>
+                                <span class="@statusBadge">@statusLabel</span>
+                            </td>
+                            <td class="font-monospace small">@msg.RetryCount / 3</td>
+                            <td class="small text-muted" style="max-width: 280px; word-break: break-word;">
+                                @if (!string.IsNullOrWhiteSpace(msg.LastError))
+                                {
+                                    <span class="text-rose small">@msg.LastError</span>
+                                }
+                                else if (msg.ProcessedAt.HasValue)
+                                {
+                                    <span>Оброблено: @msg.ProcessedAt.Value.ToString("HH:mm:ss")</span>
+                                }
+                                else
+                                {
+                                    <span>—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (msg.Status == "Failed" || msg.Status == "DeadLetter")
+                                {
+                                    <form asp-action="RetryOutbox" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@msg.Id" />
+                                        <button type="submit" class="btn btn-xs btn-outline-primary">Повторити</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="card-footer bg-surface border-top d-flex justify-content-between align-items-center py-2">
+                <span class="small text-muted">Сторінка @currentPage з @totalPages</span>
+                <div class="d-flex gap-1">
+                    @if (currentPage > 1)
+                    {
+                        <a asp-action="Outbox" asp-route-page="@(currentPage - 1)" asp-route-status="@currentStatus" class="btn btn-xs btn-outline-secondary">Назад</a>
+                    }
+                    @if (currentPage < totalPages)
+                    {
+                        <a asp-action="Outbox" asp-route-page="@(currentPage + 1)" asp-route-status="@currentStatus" class="btn btn-xs btn-outline-secondary">Вперед</a>
+                    }
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="p-5 text-center text-muted">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-2 opacity-50"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L1 7"/></svg>
+            <div class="fw-semibold">Повідомлень немає</div>
+            <small>Повідомлень у черзі за вказаним фільтром наразі немає.</small>
+        </div>
+    }
+</div>

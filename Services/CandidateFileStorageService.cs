@@ -1,6 +1,8 @@
 namespace HRReserveSystem.Services;
 
-public class CandidateFileStorageService(IWebHostEnvironment environment) : ICandidateFileStorageService
+public class CandidateFileStorageService(
+    IWebHostEnvironment environment,
+    IObjectStorageService objectStorage) : ICandidateFileStorageService
 {
     public string GetResumeStorageDirectory()
     {
@@ -37,17 +39,8 @@ public class CandidateFileStorageService(IWebHostEnvironment environment) : ICan
             return null;
         }
 
-        var extension = Path.GetExtension(resumeFile.FileName).ToLowerInvariant();
-        var storagePath = GetResumeStorageDirectory();
-        Directory.CreateDirectory(storagePath);
-
-        var fileName = $"{Guid.NewGuid():N}{extension}";
-        var physicalPath = Path.Combine(storagePath, fileName);
-
-        await using var stream = System.IO.File.Create(physicalPath);
-        await resumeFile.CopyToAsync(stream);
-
-        return $"/uploads/resumes/{fileName}";
+        await using var stream = resumeFile.OpenReadStream();
+        return await objectStorage.UploadFileAsync(stream, resumeFile.FileName, resumeFile.ContentType);
     }
 
     public async Task<string?> SaveAvatarFileAsync(IFormFile? avatarFile)
@@ -77,18 +70,7 @@ public class CandidateFileStorageService(IWebHostEnvironment environment) : ICan
             return;
         }
 
-        var fileName = Path.GetFileName(resumePath);
-        var privatePath = Path.Combine(GetResumeStorageDirectory(), fileName);
-        if (System.IO.File.Exists(privatePath))
-        {
-            System.IO.File.Delete(privatePath);
-        }
-
-        var legacyPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
-        if (System.IO.File.Exists(legacyPath))
-        {
-            System.IO.File.Delete(legacyPath);
-        }
+        _ = objectStorage.DeleteFileAsync(resumePath);
     }
 
     public void DeleteStoredAvatar(string? avatarPath)

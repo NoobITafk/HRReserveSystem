@@ -43,4 +43,50 @@ public class AuditLogsController(ApplicationDbContext context) : Controller
 
         return View(logs);
     }
+
+    public async Task<IActionResult> Outbox(string? status, int page = 1)
+    {
+        const int pageSize = 20;
+        IQueryable<EmailOutboxMessage> query = context.EmailOutboxMessages.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(m => m.Status == status);
+        }
+
+        var totalItems = await query.CountAsync();
+        var messages = await query
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        ViewBag.CurrentStatus = status;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)pageSize));
+        ViewBag.TotalItems = totalItems;
+
+        ViewBag.PendingCount = await context.EmailOutboxMessages.CountAsync(m => m.Status == "Pending");
+        ViewBag.SentCount = await context.EmailOutboxMessages.CountAsync(m => m.Status == "Sent");
+        ViewBag.FailedCount = await context.EmailOutboxMessages.CountAsync(m => m.Status == "Failed" || m.Status == "DeadLetter");
+
+        return View(messages);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RetryOutbox(int id)
+    {
+        var message = await context.EmailOutboxMessages.FirstOrDefaultAsync(m => m.Id == id);
+        if (message is not null && (message.Status == "Failed" || message.Status == "DeadLetter"))
+        {
+            message.Status = "Pending";
+            message.RetryCount = 0;
+            message.LastError = null;
+            await context.SaveChangesAsync();
+            TempData["SuccessMessage"] = $"Повідомлення #{id} повернено в чергу на відправку.";
+        }
+
+        return RedirectToAction(nameof(Outbox));
+    }
 }

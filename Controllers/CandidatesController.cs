@@ -38,6 +38,7 @@ public class CandidatesController(
             .ToListAsync());
     }
 
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("ExportPolicy")]
     public async Task<IActionResult> ExportCsv(string? search, int? minExperience, bool showHidden = false)
     {
         var candidates = await ApplyFilters(context.Candidates.AsNoTracking().Where(candidate => candidate.IsDeleted == showHidden), search, minExperience)

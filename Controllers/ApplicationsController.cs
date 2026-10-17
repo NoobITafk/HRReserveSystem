@@ -14,9 +14,7 @@ namespace HRReserveSystem.Controllers;
 [Authorize(Roles = "Admin,Recruiter")]
 public class ApplicationsController(
     ApplicationDbContext context,
-    IHubContext<KanbanHub> hubContext,
-    IAuditService auditService,
-    ILogger<ApplicationsController> logger) : Controller
+    ICandidateApplicationService applicationService) : Controller
 {
     public async Task<IActionResult> Index(string? status)
     {
@@ -265,66 +263,27 @@ public class ApplicationsController(
             return BadRequest(new { success = false, message = "Некоректний статус етапу відбору." });
         }
 
+        var (success, error) = await applicationService.MoveApplicationStageAsync(request.Id, request.Status, request.StageId);
+        if (!success)
+        {
+            return NotFound(new { success = false, message = error ?? "Заявку не знайдено." });
+        }
+
         var application = await context.Applications
+            .AsNoTracking()
             .Include(a => a.Candidate)
             .FirstOrDefaultAsync(a => a.Id == request.Id);
-
-        if (application is null)
-        {
-            return NotFound(new { success = false, message = "Заявку не знайдено." });
-        }
-
-        application.Status = request.Status;
-        if (request.StageId.HasValue && request.StageId.Value > 0)
-        {
-            application.StageId = request.StageId.Value;
-        }
-
-        if (request.Status == "Offer" || request.Status == "Hired")
-        {
-            context.AppNotifications.Add(new AppNotification
-            {
-                Title = request.Status == "Hired" ? "Кандидата прийнято на роботу!" : "Кандидату виставлено офер!",
-                Message = $"{application.Candidate?.FullName ?? "Кандидата"} переведено на етап «{HrOptions.ApplicationStatusLabel(request.Status)}»",
-                TargetUrl = $"/Applications/Kanban?vacancyId={application.VacancyId}",
-                IsRead = false,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-
-        await context.SaveChangesAsync();
-        await auditService.LogAsync("UpdateCandidateStatus", "Application", application.Id.ToString(), $"Зміна статусу кандидата {application.Candidate?.FullName} на «{HrOptions.ApplicationStatusLabel(request.Status)}»");
-
-        try
-        {
-            var payload = new
-            {
-                id = application.Id,
-                candidateName = application.Candidate?.FullName,
-                vacancyId = application.VacancyId,
-                status = application.Status,
-                stageId = application.StageId,
-                updatedBy = User.Identity?.Name ?? "Рекрутер"
-            };
-
-            await hubContext.Clients.Group($"vacancy-{application.VacancyId}").SendAsync("ApplicationMoved", payload);
-            await hubContext.Clients.Group("vacancy-all").SendAsync("ApplicationMoved", payload);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to broadcast ApplicationMoved via SignalR");
-        }
 
         return Json(new
         {
             success = true,
-            id = application.Id,
-            status = application.Status,
-            stageId = application.StageId,
-            statusLabel = HrOptions.ApplicationStatusLabel(application.Status),
-            statusBadge = HrOptions.ApplicationStatusBadge(application.Status),
-            candidateName = application.Candidate?.FullName,
-            message = $"Статус для {application.Candidate?.FullName} оновлено на «{HrOptions.ApplicationStatusLabel(application.Status)}»"
+            id = request.Id,
+            status = request.Status,
+            stageId = request.StageId,
+            statusLabel = HrOptions.ApplicationStatusLabel(request.Status),
+            statusBadge = HrOptions.ApplicationStatusBadge(request.Status),
+            candidateName = application?.Candidate?.FullName,
+            message = $"Статус для {application?.Candidate?.FullName} оновлено на «{HrOptions.ApplicationStatusLabel(request.Status)}»"
         });
     }
 
