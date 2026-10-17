@@ -446,6 +446,31 @@ public static class SeedData
                         ""IsRead"" INTEGER NOT NULL DEFAULT 0,
                         ""CreatedAt"" TEXT NOT NULL
                     );
+                    CREATE TABLE IF NOT EXISTS ""AuditLogs"" (
+                        ""Id"" INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ""UserId"" TEXT NULL,
+                        ""UserName"" TEXT NULL,
+                        ""UserRole"" TEXT NULL,
+                        ""Action"" TEXT NOT NULL,
+                        ""EntityName"" TEXT NOT NULL,
+                        ""EntityId"" TEXT NULL,
+                        ""Details"" TEXT NULL,
+                        ""IpAddress"" TEXT NULL,
+                        ""CreatedAt"" TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS ""EmailOutboxMessages"" (
+                        ""Id"" INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ""RecipientEmail"" TEXT NOT NULL,
+                        ""RecipientName"" TEXT NULL,
+                        ""Subject"" TEXT NOT NULL,
+                        ""Body"" TEXT NOT NULL,
+                        ""TemplateType"" TEXT NULL,
+                        ""Status"" TEXT NOT NULL,
+                        ""RetryCount"" INTEGER NOT NULL DEFAULT 0,
+                        ""LastError"" TEXT NULL,
+                        ""CreatedAt"" TEXT NOT NULL,
+                        ""ProcessedAt"" TEXT NULL
+                    );
                 ");
             }
             else
@@ -485,7 +510,33 @@ public static class SeedData
                         ""IsRead"" boolean NOT NULL DEFAULT false,
                         ""CreatedAt"" timestamp NOT NULL
                     );
+                    CREATE TABLE IF NOT EXISTS ""AuditLogs"" (
+                        ""Id"" serial PRIMARY KEY,
+                        ""UserId"" text NULL,
+                        ""UserName"" text NULL,
+                        ""UserRole"" text NULL,
+                        ""Action"" text NOT NULL,
+                        ""EntityName"" text NOT NULL,
+                        ""EntityId"" text NULL,
+                        ""Details"" text NULL,
+                        ""IpAddress"" text NULL,
+                        ""CreatedAt"" timestamp NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS ""EmailOutboxMessages"" (
+                        ""Id"" serial PRIMARY KEY,
+                        ""RecipientEmail"" text NOT NULL,
+                        ""RecipientName"" text NULL,
+                        ""Subject"" text NOT NULL,
+                        ""Body"" text NOT NULL,
+                        ""TemplateType"" text NULL,
+                        ""Status"" text NOT NULL,
+                        ""RetryCount"" integer NOT NULL DEFAULT 0,
+                        ""LastError"" text NULL,
+                        ""CreatedAt"" timestamp NOT NULL,
+                        ""ProcessedAt"" timestamp NULL
+                    );
                 ");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"EmailOutboxMessages\" ADD COLUMN IF NOT EXISTS \"TemplateType\" text;");
             }
         }
         catch

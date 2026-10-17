@@ -1,0 +1,133 @@
+@model IEnumerable<HRReserveSystem.Models.AuditLog>
+
+@{
+    ViewData["Title"] = "Журнал аудиту безпеки";
+    var actionFilter = ViewBag.ActionFilter as string;
+    var search = ViewBag.Search as string;
+    var currentPage = (int)(ViewBag.CurrentPage ?? 1);
+    var totalPages = (int)(ViewBag.TotalPages ?? 1);
+    var totalItems = (int)(ViewBag.TotalItems ?? 0);
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge-soft badge-soft-emerald">SOC2 / GDPR Compliance</span>
+            <span class="text-muted small">Всього записів: @totalItems</span>
+        </div>
+        <h1 class="h3 fw-bold mb-0">Журнал аудиту безпеки</h1>
+        <p class="text-muted small mb-0">Фіксація дій користувачів, експорту даних та доступу до персональних файлів</p>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card p-3 mb-4 bg-surface border">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-12 col-md-5">
+            <input type="text" name="search" value="@search" class="form-control form-control-sm" placeholder="Пошук за користувачем, IP або деталями..." />
+        </div>
+        <div class="col-12 col-md-4">
+            <select name="actionFilter" class="form-select form-select-sm">
+                <option value="">Усі дії</option>
+                <option value="DownloadResume" selected="@(actionFilter == "DownloadResume")">Скачування резюме</option>
+                <option value="ExportCsv" selected="@(actionFilter == "ExportCsv")">Експорт бази (CSV)</option>
+                <option value="UpdateCandidateStatus" selected="@(actionFilter == "UpdateCandidateStatus")">Зміна статусу кандидата</option>
+                <option value="SendOutreachEmail" selected="@(actionFilter == "SendOutreachEmail")">Відправка листа</option>
+                <option value="DeleteCandidate" selected="@(actionFilter == "DeleteCandidate")">Приховання кандидата</option>
+                <option value="RestoreCandidate" selected="@(actionFilter == "RestoreCandidate")">Відновлення кандидата</option>
+            </select>
+        </div>
+        <div class="col-12 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary flex-grow-1">Фільтрувати</button>
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Скинути</a>
+        </div>
+    </form>
+</div>
+
+<!-- Audit Log Table -->
+<div class="card bg-surface border overflow-hidden">
+    @if (Model.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 170px;">Час (UTC)</th>
+                        <th>Користувач</th>
+                        <th>Дія</th>
+                        <th>Об'єкт</th>
+                        <th>IP-адреса</th>
+                        <th>Деталі</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in Model)
+                    {
+                        var badgeClass = log.Action switch
+                        {
+                            "DownloadResume" => "badge-soft-cyan",
+                            "ExportCsv" => "badge-soft-rose",
+                            "UpdateCandidateStatus" => "badge-soft-amber",
+                            "SendOutreachEmail" => "badge-soft-emerald",
+                            "DeleteCandidate" => "badge-soft-rose",
+                            "RestoreCandidate" => "badge-soft-blue",
+                            _ => "badge-soft-slate"
+                        };
+
+                        var actionLabel = log.Action switch
+                        {
+                            "DownloadResume" => "Скачування CV",
+                            "ExportCsv" => "Експорт CSV",
+                            "UpdateCandidateStatus" => "Зміна статусу",
+                            "SendOutreachEmail" => "Відправка листа",
+                            "DeleteCandidate" => "Приховання",
+                            "RestoreCandidate" => "Відновлення",
+                            _ => log.Action
+                        };
+
+                        <tr>
+                            <td class="font-monospace small text-muted">@log.CreatedAt.ToString("dd.MM.yyyy HH:mm:ss")</td>
+                            <td>
+                                <strong class="d-block small">@log.UserName</strong>
+                                <span class="badge-soft badge-soft-slate" style="font-size:0.7rem;">@log.UserRole</span>
+                            </td>
+                            <td>
+                                <span class="@badgeClass">@actionLabel</span>
+                            </td>
+                            <td>
+                                <span class="font-monospace small">@log.EntityName @(log.EntityId != null ? $"#{log.EntityId}" : "")</span>
+                            </td>
+                            <td class="font-monospace small text-muted">@(log.IpAddress ?? "—")</td>
+                            <td class="small text-muted" style="max-width: 320px; word-break: break-word;">@(log.Details ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (totalPages > 1)
+        {
+            <div class="card-footer bg-surface border-top d-flex justify-content-between align-items-center py-2">
+                <span class="small text-muted">Сторінка @currentPage з @totalPages</span>
+                <div class="d-flex gap-1">
+                    @if (currentPage > 1)
+                    {
+                        <a asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-search="@search" asp-route-actionFilter="@actionFilter" class="btn btn-xs btn-outline-secondary">Назад</a>
+                    }
+                    @if (currentPage < totalPages)
+                    {
+                        <a asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-search="@search" asp-route-actionFilter="@actionFilter" class="btn btn-xs btn-outline-secondary">Вперед</a>
+                    }
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="p-5 text-center text-muted">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-2 opacity-50"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <div class="fw-semibold">Журнал дій порожній</div>
+            <small>Подій аудиту за вказаними фільтрами наразі немає.</small>
+        </div>
+    }
+</div>

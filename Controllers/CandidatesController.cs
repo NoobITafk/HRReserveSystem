@@ -13,9 +13,11 @@ namespace HRReserveSystem.Controllers;
 [Authorize(Roles = "Admin,Recruiter")]
 public class CandidatesController(
     ApplicationDbContext context,
-    IWebHostEnvironment environment,
+    ICandidateFileStorageService fileStorage,
+    ICandidateExportService exportService,
     ResumeIntelligenceService resumeIntelligence,
     IEmailBackgroundQueue emailQueue,
+    IAuditService auditService,
     ILogger<CandidatesController> logger) : Controller
 {
     private const long MaxResumeFileSize = 5 * 1024 * 1024;
@@ -42,30 +44,9 @@ public class CandidatesController(
             .OrderBy(candidate => candidate.FullName)
             .ToListAsync();
 
-        var csv = new StringBuilder();
-        AppendCsvRow(csv, "Id", "FullName", "Email", "Phone", "ExperienceYears", "Skills", "ResumeFilePath", "ResumeSummary", "CreatedAt");
+        await auditService.LogAsync("ExportCsv", "Candidate", null, $"Експорт бази кандидатів ({candidates.Count} осіб)");
 
-        foreach (var candidate in candidates)
-        {
-            AppendCsvRow(
-                csv,
-                candidate.Id,
-                candidate.FullName,
-                candidate.Email,
-                candidate.Phone,
-                candidate.ExperienceYears,
-                candidate.Skills,
-                candidate.ResumeFilePath,
-                candidate.ResumeSummary,
-                candidate.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
-        }
-
-        var preamble = Encoding.UTF8.GetPreamble();
-        var content = Encoding.UTF8.GetBytes(csv.ToString());
-        var fileBytes = new byte[preamble.Length + content.Length];
-        Buffer.BlockCopy(preamble, 0, fileBytes, 0, preamble.Length);
-        Buffer.BlockCopy(content, 0, fileBytes, preamble.Length, content.Length);
-
+        var fileBytes = exportService.BuildCandidatesCsv(candidates);
         var fileName = $"candidates-{DateTime.Today:yyyy-MM-dd}.csv";
         return File(fileBytes, "text/csv; charset=utf-8", fileName);
     }
@@ -102,7 +83,7 @@ public class CandidatesController(
 
         if (!string.IsNullOrWhiteSpace(candidate.ResumeFilePath))
         {
-            var fullPath = GetPhysicalResumePath(candidate.ResumeFilePath);
+            var fullPath = fileStorage.GetPhysicalResumePath(candidate.ResumeFilePath);
             if (System.IO.File.Exists(fullPath))
             {
                 ViewBag.ParsedResume = resumeIntelligence.ParseResumeFile(fullPath);
@@ -129,13 +110,15 @@ public class CandidatesController(
         }
 
         var fileName = Path.GetFileName(candidate.ResumeFilePath);
-        var physicalPath = GetPhysicalResumePath(fileName);
+        var physicalPath = fileStorage.GetPhysicalResumePath(fileName);
         if (!System.IO.File.Exists(physicalPath))
         {
             return NotFound();
         }
 
-        return PhysicalFile(physicalPath, GetResumeContentType(fileName), fileName);
+        await auditService.LogAsync("DownloadResume", "Candidate", candidate.Id.ToString(), $"Скачано резюме кандидата {candidate.FullName}");
+
+        return PhysicalFile(physicalPath, fileStorage.GetResumeContentType(fileName), fileName);
     }
 
     public IActionResult Create()
@@ -164,11 +147,11 @@ public class CandidatesController(
             return View(candidate);
         }
 
-        var uploadedResumePath = await SaveResumeFileAsync(resumeFile);
+        var uploadedResumePath = await fileStorage.SaveResumeFileAsync(resumeFile);
         if (!string.IsNullOrWhiteSpace(uploadedResumePath))
         {
             candidate.ResumeFilePath = uploadedResumePath;
-            var fullPath = GetPhysicalResumePath(uploadedResumePath);
+            var fullPath = fileStorage.GetPhysicalResumePath(uploadedResumePath);
             var parsed = resumeIntelligence.ParseResumeFile(fullPath);
             if (parsed.Success && string.IsNullOrWhiteSpace(candidate.ResumeSummary) && !string.IsNullOrWhiteSpace(parsed.Summary))
             {
@@ -176,7 +159,7 @@ public class CandidatesController(
             }
         }
 
-        var uploadedAvatarPath = await SaveAvatarFileAsync(avatarFile);
+        var uploadedAvatarPath = await fileStorage.SaveAvatarFileAsync(avatarFile);
         if (!string.IsNullOrWhiteSpace(uploadedAvatarPath))
         {
             candidate.AvatarUrl = uploadedAvatarPath;
@@ -185,6 +168,7 @@ public class CandidatesController(
         candidate.CreatedAt = DateTime.UtcNow;
         context.Add(candidate);
         await context.SaveChangesAsync();
+        await auditService.LogAsync("CreateCandidate", "Candidate", candidate.Id.ToString(), $"Створено кандидата {candidate.FullName}");
 
         return RedirectToAction(nameof(Index));
     }
@@ -210,17 +194,17 @@ public class CandidatesController(
         }
 
         var oldResumePath = candidate.ResumeFilePath;
-        var uploadedResumePath = await SaveResumeFileAsync(resumeFile);
+        var uploadedResumePath = await fileStorage.SaveResumeFileAsync(resumeFile);
         if (string.IsNullOrWhiteSpace(uploadedResumePath))
         {
             TempData["ResumeError"] = "Файл резюме не вибрано.";
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        DeleteStoredResume(oldResumePath);
+        fileStorage.DeleteStoredResume(oldResumePath);
         candidate.ResumeFilePath = uploadedResumePath;
 
-        var fullPath = GetPhysicalResumePath(uploadedResumePath);
+        var fullPath = fileStorage.GetPhysicalResumePath(uploadedResumePath);
         var parsed = resumeIntelligence.ParseResumeFile(fullPath);
         if (parsed.Success && !string.IsNullOrWhiteSpace(parsed.Summary))
         {
@@ -228,6 +212,7 @@ public class CandidatesController(
         }
 
         await context.SaveChangesAsync();
+        await auditService.LogAsync("UploadResume", "Candidate", id.ToString(), $"Оновлено резюме кандидата {candidate.FullName}");
 
         TempData["ResumeMessage"] = "Резюме кандидата оновлено та проаналізовано.";
         return RedirectToAction(nameof(Details), new { id });
@@ -299,16 +284,16 @@ public class CandidatesController(
 
             if (removeResume)
             {
-                DeleteStoredResume(oldResumePath);
+                fileStorage.DeleteStoredResume(oldResumePath);
                 existingCandidate.ResumeFilePath = null;
             }
 
-            var uploadedResumePath = await SaveResumeFileAsync(resumeFile);
+            var uploadedResumePath = await fileStorage.SaveResumeFileAsync(resumeFile);
             if (!string.IsNullOrWhiteSpace(uploadedResumePath))
             {
-                DeleteStoredResume(oldResumePath);
+                fileStorage.DeleteStoredResume(oldResumePath);
                 existingCandidate.ResumeFilePath = uploadedResumePath;
-                var fullPath = GetPhysicalResumePath(uploadedResumePath);
+                var fullPath = fileStorage.GetPhysicalResumePath(uploadedResumePath);
                 var parsed = resumeIntelligence.ParseResumeFile(fullPath);
                 if (parsed.Success && !string.IsNullOrWhiteSpace(parsed.Summary))
                 {
@@ -318,18 +303,19 @@ public class CandidatesController(
 
             if (removeAvatar)
             {
-                DeleteStoredAvatar(oldAvatarPath);
+                fileStorage.DeleteStoredAvatar(oldAvatarPath);
                 existingCandidate.AvatarUrl = null;
             }
 
-            var uploadedAvatarPath = await SaveAvatarFileAsync(avatarFile);
+            var uploadedAvatarPath = await fileStorage.SaveAvatarFileAsync(avatarFile);
             if (!string.IsNullOrWhiteSpace(uploadedAvatarPath))
             {
-                DeleteStoredAvatar(oldAvatarPath);
+                fileStorage.DeleteStoredAvatar(oldAvatarPath);
                 existingCandidate.AvatarUrl = uploadedAvatarPath;
             }
 
             await context.SaveChangesAsync();
+            await auditService.LogAsync("EditCandidate", "Candidate", existingCandidate.Id.ToString(), $"Відредаговано кандидата {existingCandidate.FullName}");
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -368,6 +354,7 @@ public class CandidatesController(
         {
             candidate.IsDeleted = true;
             await context.SaveChangesAsync();
+            await auditService.LogAsync("DeleteCandidate", "Candidate", id.ToString(), $"Видалено (переміщено в кошик) кандидата {candidate.FullName}");
         }
 
         return RedirectToAction(nameof(Index));
@@ -383,6 +370,7 @@ public class CandidatesController(
         {
             candidate.IsDeleted = false;
             await context.SaveChangesAsync();
+            await auditService.LogAsync("RestoreCandidate", "Candidate", id.ToString(), $"Відновлено з кошика кандидата {candidate.FullName}");
         }
 
         return RedirectToAction(nameof(Index), new { showHidden = true });
@@ -417,20 +405,6 @@ public class CandidatesController(
         }
 
         return candidates;
-    }
-
-    private static void AppendCsvRow(StringBuilder builder, params object?[] values)
-    {
-        builder.AppendLine(string.Join(",", values.Select(EscapeCsv)));
-    }
-
-    private static string EscapeCsv(object? value)
-    {
-        var text = value?.ToString() ?? string.Empty;
-
-        return text.Contains('"') || text.Contains(',') || text.Contains('\r') || text.Contains('\n')
-            ? $"\"{text.Replace("\"", "\"\"")}\""
-            : text;
     }
 
     private void ValidateResumeFile(IFormFile? resumeFile, bool requireFile = false)
@@ -473,106 +447,6 @@ public class CandidatesController(
         if (avatarFile.Length > MaxAvatarFileSize)
         {
             ModelState.AddModelError(nameof(Candidate.AvatarUrl), "Файл фото має бути не більшим за 5 MB.");
-        }
-    }
-
-    private string GetResumeStorageDirectory()
-    {
-        return Path.Combine(environment.ContentRootPath, "App_Data", "Storage", "Resumes");
-    }
-
-    private string GetPhysicalResumePath(string? resumePath)
-    {
-        if (string.IsNullOrWhiteSpace(resumePath))
-        {
-            return string.Empty;
-        }
-
-        var fileName = Path.GetFileName(resumePath);
-        var privatePath = Path.Combine(GetResumeStorageDirectory(), fileName);
-        if (System.IO.File.Exists(privatePath))
-        {
-            return privatePath;
-        }
-
-        var legacyPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
-        if (System.IO.File.Exists(legacyPath))
-        {
-            return legacyPath;
-        }
-
-        return privatePath;
-    }
-
-    private async Task<string?> SaveResumeFileAsync(IFormFile? resumeFile)
-    {
-        if (resumeFile is null || resumeFile.Length == 0)
-        {
-            return null;
-        }
-
-        var extension = Path.GetExtension(resumeFile.FileName).ToLowerInvariant();
-        var storagePath = GetResumeStorageDirectory();
-        Directory.CreateDirectory(storagePath);
-
-        var fileName = $"{Guid.NewGuid():N}{extension}";
-        var physicalPath = Path.Combine(storagePath, fileName);
-
-        await using var stream = System.IO.File.Create(physicalPath);
-        await resumeFile.CopyToAsync(stream);
-
-        return $"/uploads/resumes/{fileName}";
-    }
-
-    private async Task<string?> SaveAvatarFileAsync(IFormFile? avatarFile)
-    {
-        if (avatarFile is null || avatarFile.Length == 0)
-        {
-            return null;
-        }
-
-        var extension = Path.GetExtension(avatarFile.FileName).ToLowerInvariant();
-        var uploadsPath = Path.Combine(environment.WebRootPath, "uploads", "avatars");
-        Directory.CreateDirectory(uploadsPath);
-
-        var fileName = $"candidate_{Guid.NewGuid():N}{extension}";
-        var physicalPath = Path.Combine(uploadsPath, fileName);
-
-        await using var stream = System.IO.File.Create(physicalPath);
-        await avatarFile.CopyToAsync(stream);
-
-        return $"/uploads/avatars/{fileName}";
-    }
-
-    private static string GetResumeContentType(string fileName)
-    {
-        return Path.GetExtension(fileName).ToLowerInvariant() switch
-        {
-            ".pdf" => "application/pdf",
-            ".doc" => "application/msword",
-            ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            _ => "application/octet-stream"
-        };
-    }
-
-    private void DeleteStoredResume(string? resumePath)
-    {
-        if (string.IsNullOrWhiteSpace(resumePath) || !resumePath.StartsWith("/uploads/resumes/", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var fileName = Path.GetFileName(resumePath);
-        var privatePath = Path.Combine(GetResumeStorageDirectory(), fileName);
-        if (System.IO.File.Exists(privatePath))
-        {
-            System.IO.File.Delete(privatePath);
-        }
-
-        var legacyPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
-        if (System.IO.File.Exists(legacyPath))
-        {
-            System.IO.File.Delete(legacyPath);
         }
     }
 
@@ -699,7 +573,46 @@ public class CandidatesController(
         var recipientName = candidate.FullName;
         var emailSubject = request.Subject.Trim();
         var emailBody = request.Body.Trim();
+        var senderName = User.Identity?.Name ?? "Рекрутер";
 
+        // Transactional Durable Outbox: persist message in DB
+        var outboxMessage = new EmailOutboxMessage
+        {
+            RecipientEmail = recipientEmail,
+            RecipientName = recipientName,
+            Subject = emailSubject,
+            Body = emailBody,
+            TemplateType = request.TemplateType,
+            Status = "Pending",
+            CreatedAt = DateTime.UtcNow
+        };
+        context.EmailOutboxMessages.Add(outboxMessage);
+
+        var communication = new CandidateCommunication
+        {
+            CandidateId = candidate.Id,
+            SenderName = senderName,
+            RecipientEmail = candidate.Email,
+            Subject = emailSubject,
+            Body = emailBody,
+            Channel = string.IsNullOrWhiteSpace(request.Channel) ? "Email" : request.Channel,
+            SentAt = DateTime.UtcNow,
+            Status = "Sent"
+        };
+        context.CandidateCommunications.Add(communication);
+
+        context.AppNotifications.Add(new AppNotification
+        {
+            Title = $"Надіслано листа кандидату {candidate.FullName}",
+            Message = $"Тема: {emailSubject}",
+            TargetUrl = $"/Candidates/Details/{candidate.Id}",
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await context.SaveChangesAsync();
+
+        // Queue in-memory trigger for immediate delivery
         await emailQueue.QueueBackgroundWorkItemAsync(async (serviceProvider, cancellationToken) =>
         {
             var service = serviceProvider.GetRequiredService<IEmailNotificationService>();
@@ -714,32 +627,8 @@ public class CandidatesController(
             }
         });
 
-        var senderName = User.Identity?.Name ?? "Рекрутер";
-        var communication = new CandidateCommunication
-        {
-            CandidateId = candidate.Id,
-            SenderName = senderName,
-            RecipientEmail = candidate.Email,
-            Subject = request.Subject.Trim(),
-            Body = request.Body.Trim(),
-            Channel = string.IsNullOrWhiteSpace(request.Channel) ? "Email" : request.Channel,
-            SentAt = DateTime.UtcNow,
-            Status = "Sent"
-        };
-
-        context.CandidateCommunications.Add(communication);
-
-        context.AppNotifications.Add(new AppNotification
-        {
-            Title = $"Надіслано листа кандидату {candidate.FullName}",
-            Message = $"Тема: {request.Subject.Trim()}",
-            TargetUrl = $"/Candidates/Details/{candidate.Id}",
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
-
-        await context.SaveChangesAsync();
-        logger.LogInformation("Outreach email queued and recorded for candidate {CandidateId} ({Email}) by {Sender}", candidate.Id, candidate.Email, senderName);
+        await auditService.LogAsync("SendOutreachEmail", "Candidate", candidate.Id.ToString(), $"Надіслано лист кандидату {candidate.FullName}: {emailSubject}");
+        logger.LogInformation("Outreach email queued, outboxed, and recorded for candidate {CandidateId} ({Email}) by {Sender}", candidate.Id, candidate.Email, senderName);
 
         return Json(new
         {
@@ -878,21 +767,6 @@ public class CandidatesController(
             skills = string.Join(", ", matchedSkills),
             summary = text.Length > 500 ? text.Substring(0, 500) + "..." : text
         });
-    }
-
-    private void DeleteStoredAvatar(string? avatarPath)
-    {
-        if (string.IsNullOrWhiteSpace(avatarPath) || !avatarPath.StartsWith("/uploads/avatars/", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        var fileName = Path.GetFileName(avatarPath);
-        var physicalPath = Path.Combine(environment.WebRootPath, "uploads", "avatars", fileName);
-        if (System.IO.File.Exists(physicalPath))
-        {
-            System.IO.File.Delete(physicalPath);
-        }
     }
 }
 

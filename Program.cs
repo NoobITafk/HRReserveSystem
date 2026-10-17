@@ -44,6 +44,10 @@ builder.Services.AddScoped<IdentityRecruiterSyncService>();
 builder.Services.AddScoped<IPasswordHasher<Recruiter>, PasswordHasher<Recruiter>>();
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<ICandidateFileStorageService, CandidateFileStorageService>();
+builder.Services.AddScoped<ICandidateExportService, CandidateExportService>();
 builder.Services.AddScoped<ResumeIntelligenceService>();
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])

@@ -1209,6 +1209,129 @@ Senior .NET Developer, 7 років досвіду
         Assert.All(results, r => Assert.Contains("/Careers/Success", r.Headers.Location?.OriginalString));
     }
 
+    [Fact]
+    public async Task AuditLogs_Requires_Admin_Role()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+
+        // 1. Anonymous user redirected to Login
+        using (var anonClient = CreateClient(factory))
+        {
+            var anonResponse = await anonClient.GetAsync("/AuditLogs");
+            Assert.Equal(HttpStatusCode.Redirect, anonResponse.StatusCode);
+            Assert.Contains("/Account/Login", anonResponse.Headers.Location?.OriginalString);
+        }
+
+        // 2. Recruiter user redirected to AccessDenied
+        using (var recruiterClient = CreateClient(factory))
+        {
+            await LoginAsync(recruiterClient, "recruiter", "recruiter123");
+            var recruiterResponse = await recruiterClient.GetAsync("/AuditLogs");
+            AssertAccessDeniedRedirect(recruiterResponse);
+        }
+
+        // 3. Admin user allowed with 200 OK
+        using (var adminClient = CreateClient(factory))
+        {
+            await LoginAsync(adminClient, "admin", "admin123");
+            var adminResponse = await adminClient.GetAsync("/AuditLogs");
+            Assert.Equal(HttpStatusCode.OK, adminResponse.StatusCode);
+            var content = await adminResponse.Content.ReadAsStringAsync();
+            Assert.Contains("Журнал аудиту безпеки", content);
+        }
+    }
+
+    [Fact]
+    public async Task Sensitive_Operations_Generate_Audit_Logs()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "admin", "admin123");
+
+        // 1. Export CSV
+        var exportResponse = await client.GetAsync("/Candidates/ExportCsv");
+        Assert.Equal(HttpStatusCode.OK, exportResponse.StatusCode);
+
+        // Verify audit log exists
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var auditEntry = await db.AuditLogs.FirstOrDefaultAsync(l => l.Action == "ExportCsv");
+            Assert.NotNull(auditEntry);
+            Assert.Equal("Candidate", auditEntry.EntityName);
+            Assert.Equal("admin", auditEntry.UserName);
+        }
+    }
+
+    [Fact]
+    public void CandidateExportService_Builds_Valid_Csv()
+    {
+        var exportService = new CandidateExportService();
+        var candidates = new List<Candidate>
+        {
+            new()
+            {
+                Id = 1,
+                FullName = "Олександр Коваленко",
+                Email = "alex@example.com",
+                Phone = "+380501234567",
+                Skills = "C#, .NET, SQL",
+                ExperienceYears = 5,
+                ResumeSummary = "Senior .NET Engineer",
+                CreatedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            }
+        };
+
+        var bytes = exportService.BuildCandidatesCsv(candidates);
+        var csv = Encoding.UTF8.GetString(bytes);
+
+        Assert.Contains("Id,FullName,Email,Phone,ExperienceYears,Skills", csv);
+        Assert.Contains("Олександр Коваленко", csv);
+        Assert.Contains("alex@example.com", csv);
+    }
+
+    [Fact]
+    public async Task SendMessageAjax_Persists_EmailOutboxMessage()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var token = await GetAntiforgeryTokenAsync(client, "/Candidates/Details/1");
+        var requestObj = new
+        {
+            candidateId = 1,
+            subject = "Тестове запрошення на співбесіду",
+            body = "Доброго дня! Запрошуємо вас на технічну зустріч.",
+            channel = "Email",
+            templateType = "Screening"
+        };
+
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/Candidates/SendMessageAjax")
+        {
+            Content = JsonContent.Create(requestObj)
+        };
+        requestMessage.Headers.Add("RequestVerificationToken", token);
+
+        var response = await client.SendAsync(requestMessage);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // Check EmailOutboxMessages table
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var outboxItem = await db.EmailOutboxMessages
+                .FirstOrDefaultAsync(m => m.Subject == "Тестове запрошення на співбесіду");
+            Assert.NotNull(outboxItem);
+            Assert.Equal("Screening", outboxItem.TemplateType);
+
+            // Also verify audit log
+            var audit = await db.AuditLogs
+                .FirstOrDefaultAsync(a => a.Action == "SendOutreachEmail" && a.EntityId == "1");
+            Assert.NotNull(audit);
+        }
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

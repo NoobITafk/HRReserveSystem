@@ -7,12 +7,15 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
+using HRReserveSystem.Services;
+
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter")]
 public class ApplicationsController(
     ApplicationDbContext context,
     IHubContext<KanbanHub> hubContext,
+    IAuditService auditService,
     ILogger<ApplicationsController> logger) : Controller
 {
     public async Task<IActionResult> Index(string? status)
@@ -290,6 +293,7 @@ public class ApplicationsController(
         }
 
         await context.SaveChangesAsync();
+        await auditService.LogAsync("UpdateCandidateStatus", "Application", application.Id.ToString(), $"Зміна статусу кандидата {application.Candidate?.FullName} на «{HrOptions.ApplicationStatusLabel(request.Status)}»");
 
         try
         {

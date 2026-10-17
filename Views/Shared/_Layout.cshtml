@@ -130,6 +130,12 @@
                             </span>
                             <span>Команда та ролі</span>
                         </a>
+                        <a class="sidebar-link @(activeClass("AuditLogs", ""))" asp-area="" asp-controller="AuditLogs" asp-action="Index">
+                            <span class="sidebar-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                            </span>
+                            <span>Аудит безпеки</span>
+                        </a>
                     }
                     <a class="sidebar-link @(activeClass("Account", "Profile"))" asp-area="" asp-controller="Account" asp-action="Profile">
                         <span class="sidebar-icon" aria-hidden="true">
@@ -316,6 +322,14 @@
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
                                     <span>Мій профіль та налаштування</span>
                                 </a>
+
+                                @if (isAdmin)
+                                {
+                                    <a class="dropdown-item-soft" asp-controller="AuditLogs" asp-action="Index">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                                        <span>Журнал аудиту безпеки</span>
+                                    </a>
+                                }
 
                                 <div class="profile-menu-divider"></div>
 

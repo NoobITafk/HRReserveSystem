@@ -27,6 +27,10 @@ public class ApplicationDbContext(DbContextOptions options) : IdentityDbContext<
 
     public DbSet<AppNotification> AppNotifications => Set<AppNotification>();
 
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    public DbSet<EmailOutboxMessage> EmailOutboxMessages => Set<EmailOutboxMessage>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
