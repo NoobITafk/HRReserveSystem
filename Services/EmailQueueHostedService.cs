@@ -9,6 +9,14 @@ public class EmailQueueHostedService(
     IServiceScopeFactory serviceScopeFactory,
     ILogger<EmailQueueHostedService> logger) : BackgroundService
 {
+    private readonly SemaphoreSlim _syncLock = new(1, 1);
+
+    public override void Dispose()
+    {
+        _syncLock.Dispose();
+        base.Dispose();
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("Durable Transactional Email Outbox Hosted Service started.");
@@ -52,6 +60,11 @@ public class EmailQueueHostedService(
 
     private async Task ProcessOutboxBatchAsync(CancellationToken cancellationToken)
     {
+        if (!await _syncLock.WaitAsync(0, cancellationToken))
+        {
+            return;
+        }
+
         try
         {
             await using var scope = serviceScopeFactory.CreateAsyncScope();
@@ -106,6 +119,10 @@ public class EmailQueueHostedService(
         catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
         {
             logger.LogWarning(ex, "Failed to process outbox batch");
+        }
+        finally
+        {
+            _syncLock.Release();
         }
     }
 }

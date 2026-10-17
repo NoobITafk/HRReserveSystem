@@ -17,6 +17,7 @@ public class AccountController(
     IPasswordHasher<Recruiter> passwordHasher,
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
+    IAuditService auditService,
     IWebHostEnvironment environment) : Controller
 {
     [AllowAnonymous]
@@ -46,6 +47,7 @@ public class AccountController(
         var recruiter = await demoUserService.ValidateUserAsync(model.Login, model.Password);
         if (recruiter is null)
         {
+            await auditService.LogAsync("LoginFailed", "Account", null, $"Невдала спроба входу для логіна: {model.Login}");
             ModelState.AddModelError(string.Empty, "Невірний логін або пароль. Перевірте введені дані.");
             return View(model);
         }
@@ -69,6 +71,7 @@ public class AccountController(
         }
 
         await signInManager.SignInAsync(user, model.RememberMe);
+        await auditService.LogAsync("LoginSuccess", "Account", recruiter.Id.ToString(), $"Успішний вхід користувача {recruiter.FullName} ({recruiter.Role})");
 
         if (!string.IsNullOrWhiteSpace(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
         {
@@ -153,6 +156,8 @@ public class AccountController(
         {
             await signInManager.SignInAsync(identityUser, isPersistent: false);
         }
+
+        await auditService.LogAsync("StaffRegistered", "Recruiter", recruiter.Id.ToString(), $"Зареєстровано нового співробітника: {recruiter.FullName} ({recruiter.Role})");
 
         TempData["SuccessMessage"] = $"Вітаємо у системі, {recruiter.FullName}! Ваш обліковий запис успішно створено.";
 
@@ -261,6 +266,12 @@ public class AccountController(
             await signInManager.RefreshSignInAsync(identityUser);
         }
 
+        await auditService.LogAsync(
+            wantsPasswordChange ? "ChangePassword" : "UpdateProfile",
+            "Account",
+            recruiter.Id.ToString(),
+            wantsPasswordChange ? $"Користувач {recruiter.FullName} змінив пароль" : $"Користувач {recruiter.FullName} оновив дані профілю");
+
         TempData["SuccessMessage"] = wantsPasswordChange
             ? "Профіль та новий пароль успішно збережено."
             : "Дані вашого профілю успішно оновлено.";
@@ -273,6 +284,8 @@ public class AccountController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        var userName = User.Identity?.Name ?? "Користувач";
+        await auditService.LogAsync("Logout", "Account", null, $"Користувач {userName} вийшов із системи");
         await signInManager.SignOutAsync();
         return RedirectToAction(nameof(Login));
     }

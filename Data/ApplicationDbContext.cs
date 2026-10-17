@@ -39,6 +39,18 @@ public class ApplicationDbContext(DbContextOptions options) : IdentityDbContext<
             .HasIndex(candidate => candidate.Email)
             .IsUnique();
 
+        modelBuilder.Entity<Candidate>()
+            .HasIndex(candidate => new { candidate.IsDeleted, candidate.FullName });
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(log => new { log.Action, log.CreatedAt });
+
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(log => log.CreatedAt);
+
+        modelBuilder.Entity<EmailOutboxMessage>()
+            .HasIndex(m => new { m.Status, m.CreatedAt });
+
         modelBuilder.Entity<Recruiter>()
             .HasIndex(recruiter => recruiter.Email)
             .IsUnique();
@@ -50,6 +62,12 @@ public class ApplicationDbContext(DbContextOptions options) : IdentityDbContext<
         modelBuilder.Entity<Application>()
             .HasIndex(application => new { application.CandidateId, application.VacancyId })
             .IsUnique();
+
+        modelBuilder.Entity<Application>()
+            .HasIndex(a => a.Status);
+
+        modelBuilder.Entity<Application>()
+            .HasIndex(a => a.StageId);
 
         modelBuilder.Entity<Vacancy>()
             .ToTable(table =>

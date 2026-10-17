@@ -471,6 +471,12 @@ public static class SeedData
                         ""CreatedAt"" TEXT NOT NULL,
                         ""ProcessedAt"" TEXT NULL
                     );
+                    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_Action_CreatedAt"" ON ""AuditLogs"" (""Action"", ""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_CreatedAt"" ON ""AuditLogs"" (""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_EmailOutboxMessages_Status_CreatedAt"" ON ""EmailOutboxMessages"" (""Status"", ""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Candidates_IsDeleted_FullName"" ON ""Candidates"" (""IsDeleted"", ""FullName"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Applications_Status"" ON ""Applications"" (""Status"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Applications_StageId"" ON ""Applications"" (""StageId"");
                 ");
             }
             else
@@ -537,6 +543,14 @@ public static class SeedData
                     );
                 ");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"EmailOutboxMessages\" ADD COLUMN IF NOT EXISTS \"TemplateType\" text;");
+                await context.Database.ExecuteSqlRawAsync(@"
+                    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_Action_CreatedAt"" ON ""AuditLogs"" (""Action"", ""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_CreatedAt"" ON ""AuditLogs"" (""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_EmailOutboxMessages_Status_CreatedAt"" ON ""EmailOutboxMessages"" (""Status"", ""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Candidates_IsDeleted_FullName"" ON ""Candidates"" (""IsDeleted"", ""FullName"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Applications_Status"" ON ""Applications"" (""Status"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Applications_StageId"" ON ""Applications"" (""StageId"");
+                ");
             }
         }
         catch

@@ -1332,6 +1332,63 @@ Senior .NET Developer, 7 років досвіду
         }
     }
 
+    [Fact]
+    public async Task Account_Login_Success_And_Failure_Records_AuditLogs()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        // Failed login
+        var failResponse = await LoginAsync(client, "admin", "wrongpassword");
+        Assert.Equal(HttpStatusCode.OK, failResponse.StatusCode);
+
+        // Successful login
+        var successResponse = await LoginAsync(client, "admin", "admin123");
+        Assert.Equal(HttpStatusCode.Redirect, successResponse.StatusCode);
+
+        // Logout
+        var logoutResponse = await PostFormAsync(client, "/Home/Index", "/Account/Logout", new Dictionary<string, string>());
+        Assert.Equal(HttpStatusCode.Redirect, logoutResponse.StatusCode);
+
+        // Verify in DB
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var failedLog = await db.AuditLogs.FirstOrDefaultAsync(a => a.Action == "LoginFailed" && a.EntityName == "Account");
+        Assert.NotNull(failedLog);
+        Assert.Contains("admin", failedLog.Details);
+
+        var successLog = await db.AuditLogs.FirstOrDefaultAsync(a => a.Action == "LoginSuccess" && a.EntityName == "Account");
+        Assert.NotNull(successLog);
+        Assert.Contains("Адміністратор", successLog.Details);
+
+        var logoutLog = await db.AuditLogs.FirstOrDefaultAsync(a => a.Action == "Logout" && a.EntityName == "Account");
+        Assert.NotNull(logoutLog);
+    }
+
+    [Fact]
+    public void ApplicationDbContext_Model_Configures_Covering_Indexes()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        var candidateEntity = db.Model.FindEntityType(typeof(Candidate));
+        Assert.NotNull(candidateEntity);
+        var candidateIndexes = candidateEntity.GetIndexes();
+        Assert.Contains(candidateIndexes, idx => idx.Properties.Any(p => p.Name == "IsDeleted") && idx.Properties.Any(p => p.Name == "FullName"));
+
+        var auditEntity = db.Model.FindEntityType(typeof(AuditLog));
+        Assert.NotNull(auditEntity);
+        var auditIndexes = auditEntity.GetIndexes();
+        Assert.Contains(auditIndexes, idx => idx.Properties.Any(p => p.Name == "Action") && idx.Properties.Any(p => p.Name == "CreatedAt"));
+
+        var outboxEntity = db.Model.FindEntityType(typeof(EmailOutboxMessage));
+        Assert.NotNull(outboxEntity);
+        var outboxIndexes = outboxEntity.GetIndexes();
+        Assert.Contains(outboxIndexes, idx => idx.Properties.Any(p => p.Name == "Status") && idx.Properties.Any(p => p.Name == "CreatedAt"));
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
