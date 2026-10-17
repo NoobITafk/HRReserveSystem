@@ -22,4 +22,10 @@ public interface ICandidateApplicationService
         string targetStatus,
         int? targetStageId,
         CancellationToken ct = default);
+    Task<(List<Application> Items, int TotalItems, int TotalPages)> GetApplicationsAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default);
+    Task<Application?> GetApplicationDetailsAsync(int id, CancellationToken ct = default);
+    Task<Application> CreateApplicationAsync(Application application, CancellationToken ct = default);
+    Task<(bool Success, string? Error)> UpdateApplicationAsync(Application application, CancellationToken ct = default);
+    Task<bool> DeleteApplicationAsync(int id, CancellationToken ct = default);
+    Task<(List<Vacancy> Vacancies, List<PipelineStage> Stages, List<Application> Applications)> GetKanbanDataAsync(int? vacancyId, CancellationToken ct = default);
 }

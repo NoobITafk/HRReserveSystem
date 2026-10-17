@@ -18,29 +18,12 @@ public class ApplicationsController(
 {
     public async Task<IActionResult> Index(string? status, int page = 1)
     {
-        const int pageSize = 25;
-        IQueryable<Application> applications = context.Applications
-            .AsNoTracking()
-            .Include(application => application.Candidate)
-            .Include(application => application.Vacancy)
-            .Where(application => application.Candidate != null && !application.Candidate.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            applications = applications.Where(application => application.Status == status);
-        }
-
-        var totalItems = await applications.CountAsync();
-        var pagedApplications = await applications
-            .OrderByDescending(application => application.AppliedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        var (pagedApplications, totalItems, totalPages) = await applicationService.GetApplicationsAsync(status, page, 25);
 
         ViewData["StatusFilter"] = status;
         ViewData["Statuses"] = new SelectList(HrOptions.ApplicationStatuses, status);
         ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)pageSize));
+        ViewBag.TotalPages = totalPages;
         ViewBag.TotalItems = totalItems;
 
         return View(pagedApplications);
@@ -53,13 +36,7 @@ public class ApplicationsController(
             return NotFound();
         }
 
-        var application = await context.Applications
-            .AsNoTracking()
-            .Include(item => item.Candidate)
-            .Include(item => item.Vacancy)
-            .Include(item => item.Interviews)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var application = await applicationService.GetApplicationDetailsAsync(id.Value);
         return application is null ? NotFound() : View(application);
     }
 
@@ -230,34 +207,7 @@ public class ApplicationsController(
 
     public async Task<IActionResult> Kanban(int? vacancyId)
     {
-        IQueryable<Application> query = context.Applications
-            .AsNoTracking()
-            .Include(a => a.Candidate)
-            .Include(a => a.Vacancy)
-            .Include(a => a.Interviews)
-            .Include(a => a.Stage)
-            .Where(a => a.Candidate != null && !a.Candidate.IsDeleted);
-
-        if (vacancyId.HasValue && vacancyId.Value > 0)
-        {
-            query = query.Where(a => a.VacancyId == vacancyId.Value);
-        }
-
-        var applications = await query
-            .OrderByDescending(a => a.AppliedAt)
-            .ToListAsync();
-
-        var vacancies = await context.Vacancies
-            .AsNoTracking()
-            .Where(v => !v.IsArchived)
-            .OrderBy(v => v.Title)
-            .ToListAsync();
-
-        var stages = await context.PipelineStages
-            .AsNoTracking()
-            .Where(s => s.VacancyId == vacancyId || s.IsDefault)
-            .OrderBy(s => s.Order)
-            .ToListAsync();
+        var (vacancies, stages, applications) = await applicationService.GetKanbanDataAsync(vacancyId);
 
         ViewData["VacancyId"] = vacancyId;
         ViewData["Vacancies"] = new SelectList(vacancies, "Id", "Title", vacancyId);

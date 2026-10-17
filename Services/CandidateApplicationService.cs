@@ -217,4 +217,127 @@ public class CandidateApplicationService(
 
         return (true, null);
     }
+
+    public async Task<(List<Application> Items, int TotalItems, int TotalPages)> GetApplicationsAsync(string? status, int page = 1, int pageSize = 25, CancellationToken ct = default)
+    {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 25;
+
+        IQueryable<Application> query = context.Applications
+            .AsNoTracking()
+            .Include(application => application.Candidate)
+            .Include(application => application.Vacancy)
+            .Where(application => application.Candidate != null && !application.Candidate.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(application => application.Status == status);
+        }
+
+        var totalItems = await query.CountAsync(ct);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)pageSize));
+        if (totalPages > 0 && page > totalPages) page = totalPages;
+
+        var items = await query
+            .OrderByDescending(application => application.AppliedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return (items, totalItems, totalPages);
+    }
+
+    public async Task<Application?> GetApplicationDetailsAsync(int id, CancellationToken ct = default)
+    {
+        return await context.Applications
+            .AsNoTracking()
+            .Include(item => item.Candidate)
+            .Include(item => item.Vacancy)
+            .Include(item => item.Interviews)
+                .ThenInclude(interview => interview.Recruiter)
+            .Include(item => item.Stage)
+            .FirstOrDefaultAsync(item => item.Id == id, ct);
+    }
+
+    public async Task<Application> CreateApplicationAsync(Application application, CancellationToken ct = default)
+    {
+        application.AppliedAt = DateTime.UtcNow;
+        if (string.IsNullOrWhiteSpace(application.Status))
+        {
+            application.Status = "Applied";
+        }
+
+        context.Applications.Add(application);
+        await context.SaveChangesAsync(ct);
+
+        await auditService.LogAsync("CreateApplication", "Application", application.Id.ToString(), $"Подано заявку на вакансію #{application.VacancyId}");
+        return application;
+    }
+
+    public async Task<(bool Success, string? Error)> UpdateApplicationAsync(Application application, CancellationToken ct = default)
+    {
+        var existing = await context.Applications.FirstOrDefaultAsync(a => a.Id == application.Id, ct);
+        if (existing is null)
+        {
+            return (false, "Заявку не знайдено.");
+        }
+
+        existing.VacancyId = application.VacancyId;
+        existing.Status = application.Status;
+        existing.RecruiterComment = application.RecruiterComment;
+        existing.StageId = application.StageId;
+
+        await context.SaveChangesAsync(ct);
+        await auditService.LogAsync("UpdateApplication", "Application", application.Id.ToString(), $"Оновлено заявку #{application.Id}");
+        return (true, null);
+    }
+
+    public async Task<bool> DeleteApplicationAsync(int id, CancellationToken ct = default)
+    {
+        var application = await context.Applications.FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (application is null)
+        {
+            return false;
+        }
+
+        context.Applications.Remove(application);
+        await context.SaveChangesAsync(ct);
+
+        await auditService.LogAsync("DeleteApplication", "Application", id.ToString(), $"Видалено заявку #{id}");
+        return true;
+    }
+
+    public async Task<(List<Vacancy> Vacancies, List<PipelineStage> Stages, List<Application> Applications)> GetKanbanDataAsync(int? vacancyId, CancellationToken ct = default)
+    {
+        var vacancies = await context.Vacancies
+            .AsNoTracking()
+            .Where(v => !v.IsArchived)
+            .OrderBy(v => v.Title)
+            .ToListAsync(ct);
+
+        var stages = await context.PipelineStages
+            .AsNoTracking()
+            .Where(s => s.VacancyId == vacancyId || s.IsDefault)
+            .OrderBy(s => s.Order)
+            .ToListAsync(ct);
+
+        IQueryable<Application> query = context.Applications
+            .AsNoTracking()
+            .Include(a => a.Candidate)
+            .Include(a => a.Vacancy)
+            .Include(a => a.Interviews)
+            .Include(a => a.Stage)
+            .Where(a => a.Candidate != null && !a.Candidate.IsDeleted);
+
+        if (vacancyId.HasValue && vacancyId.Value > 0)
+        {
+            query = query.Where(a => a.VacancyId == vacancyId.Value);
+        }
+
+        var applications = await query
+            .OrderByDescending(a => a.AppliedAt)
+            .ToListAsync(ct);
+
+        return (vacancies, stages, applications);
+    }
 }

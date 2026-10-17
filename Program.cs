@@ -61,6 +61,7 @@ builder.Services.AddScoped<IObjectStorageService>(sp =>
 });
 builder.Services.AddScoped<ICandidateFileStorageService, CandidateFileStorageService>();
 builder.Services.AddScoped<ICandidateExportService, CandidateExportService>();
+builder.Services.AddScoped<ICandidateService, CandidateService>();
 builder.Services.AddScoped<ICandidateApplicationService, CandidateApplicationService>();
 builder.Services.AddScoped<IVacancyService, VacancyService>();
 builder.Services.AddScoped<IInterviewService, InterviewService>();

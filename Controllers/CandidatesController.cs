@@ -13,12 +13,11 @@ namespace HRReserveSystem.Controllers;
 [Authorize(Roles = "Admin,Recruiter")]
 public class CandidatesController(
     ApplicationDbContext context,
+    ICandidateService candidateService,
     ICandidateFileStorageService fileStorage,
     ICandidateExportService exportService,
     ResumeIntelligenceService resumeIntelligence,
-    IEmailBackgroundQueue emailQueue,
-    IAuditService auditService,
-    ILogger<CandidatesController> logger) : Controller
+    IAuditService auditService) : Controller
 {
     private const long MaxResumeFileSize = 5 * 1024 * 1024;
     private const long MaxAvatarFileSize = 5 * 1024 * 1024;
@@ -27,20 +26,7 @@ public class CandidatesController(
 
     public async Task<IActionResult> Index(string? search, int? minExperience, bool showHidden = false, int page = 1)
     {
-        const int pageSize = 25;
-        if (page < 1) page = 1;
-
-        var query = ApplyFilters(context.Candidates.AsNoTracking().Where(candidate => candidate.IsDeleted == showHidden), search, minExperience);
-
-        var totalItems = await query.CountAsync();
-        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
-        if (totalPages > 0 && page > totalPages) page = totalPages;
-
-        var candidates = await query
-            .OrderBy(candidate => candidate.FullName)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+        var (candidates, totalItems, totalPages) = await candidateService.GetCandidatesAsync(search, minExperience, showHidden, page, 25);
 
         ViewData["CurrentFilter"] = search;
         ViewData["MinExperience"] = minExperience;
@@ -55,9 +41,7 @@ public class CandidatesController(
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("ExportPolicy")]
     public async Task<IActionResult> ExportCsv(string? search, int? minExperience, bool showHidden = false)
     {
-        var candidates = await ApplyFilters(context.Candidates.AsNoTracking().Where(candidate => candidate.IsDeleted == showHidden), search, minExperience)
-            .OrderBy(candidate => candidate.FullName)
-            .ToListAsync();
+        var candidates = await candidateService.GetCandidatesForExportAsync(search, minExperience, showHidden);
 
         await auditService.LogAsync("ExportCsv", "Candidate", null, $"Експорт бази кандидатів ({candidates.Count} осіб)");
 
@@ -156,35 +140,13 @@ public class CandidatesController(
             return View(candidate);
         }
 
-        if (await CandidateEmailExists(candidate.Email))
+        if (await candidateService.EmailExistsAsync(candidate.Email))
         {
             ModelState.AddModelError(nameof(Candidate.Email), "Кандидат із такою електронною поштою вже існує.");
             return View(candidate);
         }
 
-        var uploadedResumePath = await fileStorage.SaveResumeFileAsync(resumeFile);
-        if (!string.IsNullOrWhiteSpace(uploadedResumePath))
-        {
-            candidate.ResumeFilePath = uploadedResumePath;
-            var fullPath = fileStorage.GetPhysicalResumePath(uploadedResumePath);
-            var parsed = resumeIntelligence.ParseResumeFile(fullPath);
-            if (parsed.Success && string.IsNullOrWhiteSpace(candidate.ResumeSummary) && !string.IsNullOrWhiteSpace(parsed.Summary))
-            {
-                candidate.ResumeSummary = parsed.Summary;
-            }
-        }
-
-        var uploadedAvatarPath = await fileStorage.SaveAvatarFileAsync(avatarFile);
-        if (!string.IsNullOrWhiteSpace(uploadedAvatarPath))
-        {
-            candidate.AvatarUrl = uploadedAvatarPath;
-        }
-
-        candidate.CreatedAt = DateTime.UtcNow;
-        context.Add(candidate);
-        await context.SaveChangesAsync();
-        await auditService.LogAsync("CreateCandidate", "Candidate", candidate.Id.ToString(), $"Створено кандидата {candidate.FullName}");
-
+        await candidateService.CreateCandidateAsync(candidate, resumeFile, avatarFile);
         return RedirectToAction(nameof(Index));
     }
 
@@ -192,12 +154,6 @@ public class CandidatesController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UploadResume(int id, IFormFile? resumeFile)
     {
-        var candidate = await context.Candidates.FirstOrDefaultAsync(item => item.Id == id && !item.IsDeleted);
-        if (candidate is null)
-        {
-            return NotFound();
-        }
-
         ValidateResumeFile(resumeFile, requireFile: true);
         if (!ModelState.IsValid)
         {
@@ -208,26 +164,12 @@ public class CandidatesController(
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var oldResumePath = candidate.ResumeFilePath;
-        var uploadedResumePath = await fileStorage.SaveResumeFileAsync(resumeFile);
-        if (string.IsNullOrWhiteSpace(uploadedResumePath))
+        var (success, error, _) = await candidateService.UploadResumeAsync(id, resumeFile!);
+        if (!success)
         {
-            TempData["ResumeError"] = "Файл резюме не вибрано.";
+            TempData["ResumeError"] = error ?? "Помилка завантаження файлу.";
             return RedirectToAction(nameof(Details), new { id });
         }
-
-        fileStorage.DeleteStoredResume(oldResumePath);
-        candidate.ResumeFilePath = uploadedResumePath;
-
-        var fullPath = fileStorage.GetPhysicalResumePath(uploadedResumePath);
-        var parsed = resumeIntelligence.ParseResumeFile(fullPath);
-        if (parsed.Success && !string.IsNullOrWhiteSpace(parsed.Summary))
-        {
-            candidate.ResumeSummary = parsed.Summary;
-        }
-
-        await context.SaveChangesAsync();
-        await auditService.LogAsync("UploadResume", "Candidate", id.ToString(), $"Оновлено резюме кандидата {candidate.FullName}");
 
         TempData["ResumeMessage"] = "Резюме кандидата оновлено та проаналізовано.";
         return RedirectToAction(nameof(Details), new { id });
@@ -363,15 +305,7 @@ public class CandidatesController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var candidate = await context.Candidates.FirstOrDefaultAsync(item => item.Id == id && !item.IsDeleted);
-
-        if (candidate is not null)
-        {
-            candidate.IsDeleted = true;
-            await context.SaveChangesAsync();
-            await auditService.LogAsync("DeleteCandidate", "Candidate", id.ToString(), $"Видалено (переміщено в кошик) кандидата {candidate.FullName}");
-        }
-
+        await candidateService.SoftDeleteCandidateAsync(id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -379,15 +313,7 @@ public class CandidatesController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id)
     {
-        var candidate = await context.Candidates.FirstOrDefaultAsync(item => item.Id == id && item.IsDeleted);
-
-        if (candidate is not null)
-        {
-            candidate.IsDeleted = false;
-            await context.SaveChangesAsync();
-            await auditService.LogAsync("RestoreCandidate", "Candidate", id.ToString(), $"Відновлено з кошика кандидата {candidate.FullName}");
-        }
-
+        await candidateService.RestoreCandidateAsync(id);
         return RedirectToAction(nameof(Index), new { showHidden = true });
     }
 
@@ -572,87 +498,27 @@ public class CandidatesController(
             return BadRequest(new { success = false, message = "Тема та текст повідомлення обов'язкові для заповнення." });
         }
 
-        var candidate = await context.Candidates
-            .FirstOrDefaultAsync(c => c.Id == request.CandidateId && !c.IsDeleted);
-
-        if (candidate is null)
-        {
-            return NotFound(new { success = false, message = "Кандидата не знайдено." });
-        }
-
-        if (string.IsNullOrWhiteSpace(candidate.Email))
-        {
-            return BadRequest(new { success = false, message = "У кандидата відсутня електронна пошта." });
-        }
-
-        var recipientEmail = candidate.Email;
-        var recipientName = candidate.FullName;
-        var emailSubject = request.Subject.Trim();
-        var emailBody = request.Body.Trim();
         var senderName = User.Identity?.Name ?? "Рекрутер";
+        var (success, error, communication) = await candidateService.SendMessageAsync(
+            request.CandidateId,
+            request.Subject,
+            request.Body,
+            request.Channel,
+            request.TemplateType,
+            senderName);
 
-        // Transactional Durable Outbox: persist message in DB
-        var outboxMessage = new EmailOutboxMessage
+        if (!success)
         {
-            RecipientEmail = recipientEmail,
-            RecipientName = recipientName,
-            Subject = emailSubject,
-            Body = emailBody,
-            TemplateType = request.TemplateType,
-            Status = "Pending",
-            CreatedAt = DateTime.UtcNow
-        };
-        context.EmailOutboxMessages.Add(outboxMessage);
-
-        var communication = new CandidateCommunication
-        {
-            CandidateId = candidate.Id,
-            SenderName = senderName,
-            RecipientEmail = candidate.Email,
-            Subject = emailSubject,
-            Body = emailBody,
-            Channel = string.IsNullOrWhiteSpace(request.Channel) ? "Email" : request.Channel,
-            SentAt = DateTime.UtcNow,
-            Status = "Sent"
-        };
-        context.CandidateCommunications.Add(communication);
-
-        context.AppNotifications.Add(new AppNotification
-        {
-            Title = $"Надіслано листа кандидату {candidate.FullName}",
-            Message = $"Тема: {emailSubject}",
-            TargetUrl = $"/Candidates/Details/{candidate.Id}",
-            IsRead = false,
-            CreatedAt = DateTime.UtcNow
-        });
-
-        await context.SaveChangesAsync();
-
-        // Queue in-memory trigger for immediate delivery
-        await emailQueue.QueueBackgroundWorkItemAsync(async (serviceProvider, cancellationToken) =>
-        {
-            var service = serviceProvider.GetRequiredService<IEmailNotificationService>();
-            var queueLogger = serviceProvider.GetRequiredService<ILogger<CandidatesController>>();
-            try
-            {
-                await service.SendCandidateMessageAsync(recipientEmail, recipientName, emailSubject, emailBody);
-            }
-            catch (Exception ex)
-            {
-                queueLogger.LogWarning(ex, "Background email sending encountered warning for {Email}", recipientEmail);
-            }
-        });
-
-        await auditService.LogAsync("SendOutreachEmail", "Candidate", candidate.Id.ToString(), $"Надіслано лист кандидату {candidate.FullName}: {emailSubject}");
-        logger.LogInformation("Outreach email queued, outboxed, and recorded for candidate {CandidateId} ({Email}) by {Sender}", candidate.Id, candidate.Email, senderName);
+            return NotFound(new { success = false, message = error ?? "Помилка надсилання листа." });
+        }
 
         return Json(new
         {
             success = true,
-            message = $"Лист для {candidate.FullName} успішно надіслано та збережено в історії комунікацій.",
+            message = "Лист успішно надіслано та збережено в історії комунікацій.",
             communication = new
             {
-                id = communication.Id,
+                id = communication!.Id,
                 senderName = communication.SenderName,
                 recipientEmail = communication.RecipientEmail,
                 subject = communication.Subject,
@@ -673,44 +539,24 @@ public class CandidatesController(
             return BadRequest(new { success = false, message = "Текст нотатки не може бути порожнім." });
         }
 
-        var candidate = await context.Candidates
-            .Include(c => c.Applications)
-            .FirstOrDefaultAsync(c => c.Id == request.CandidateId && !c.IsDeleted);
-
-        if (candidate is null)
-        {
-            return NotFound(new { success = false, message = "Кандидата не знайдено." });
-        }
-
-        var timestamp = DateTime.Now.ToString("dd.MM HH:mm");
         var author = User.Identity?.Name ?? "Рекрутер";
-        var newEntry = $"[{timestamp} {author}]: {request.Note.Trim()}";
+        var (success, error, note, timestamp, noteAuthor) = await candidateService.AddNoteAsync(
+            request.CandidateId,
+            request.ApplicationId,
+            request.Note,
+            author);
 
-        var application = request.ApplicationId.HasValue
-            ? candidate.Applications.FirstOrDefault(a => a.Id == request.ApplicationId.Value)
-            : candidate.Applications.OrderByDescending(a => a.AppliedAt).FirstOrDefault();
-
-        if (application is not null)
+        if (!success)
         {
-            application.RecruiterComment = string.IsNullOrWhiteSpace(application.RecruiterComment)
-                ? newEntry
-                : $"{newEntry}\n{application.RecruiterComment}";
+            return NotFound(new { success = false, message = error ?? "Кандидата не знайдено." });
         }
-        else
-        {
-            candidate.ResumeSummary = string.IsNullOrWhiteSpace(candidate.ResumeSummary)
-                ? newEntry
-                : $"{newEntry}\n{candidate.ResumeSummary}";
-        }
-
-        await context.SaveChangesAsync();
 
         return Json(new
         {
             success = true,
-            note = newEntry,
+            note = note,
             timestamp = timestamp,
-            author = author,
+            author = noteAuthor,
             rawNote = request.Note.Trim()
         });
     }
