@@ -631,7 +631,7 @@
             activeType = "screening";
 
             const sub = document.getElementById("outreachCandidateSubtitle");
-            if (sub) sub.textContent = `Кандидат: ${activeName} (${activeEmail || 'без пошти'})`;
+            if (sub) sub.textContent = `${activeName} · ${activeEmail || 'пошта не вказана'}`;
 
             modalEl.querySelectorAll(".outreach-tab-btn").forEach(b => {
                 b.classList.toggle("active", b.getAttribute("data-template-type") === "screening");
