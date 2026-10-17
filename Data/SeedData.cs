@@ -415,6 +415,16 @@ public static class SeedData
                     await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Applications\" ADD COLUMN \"StageId\" INTEGER;");
                 }
 
+                var softSkillCols = await context.Database.SqlQueryRaw<string>("SELECT name FROM pragma_table_info('SoftSkillAssessments');").ToListAsync();
+                if (!softSkillCols.Contains("RecruiterId"))
+                {
+                    await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN \"RecruiterId\" INTEGER;");
+                }
+                if (!softSkillCols.Contains("CreatedAt"))
+                {
+                    await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN \"CreatedAt\" TEXT;");
+                }
+
                 await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS ""PipelineStages"" (
                         ""Id"" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -487,6 +497,8 @@ public static class SeedData
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Recruiters\" ADD COLUMN IF NOT EXISTS \"AvatarUrl\" text;");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Candidates\" ADD COLUMN IF NOT EXISTS \"AvatarUrl\" text;");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Applications\" ADD COLUMN IF NOT EXISTS \"StageId\" integer;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN IF NOT EXISTS \"RecruiterId\" integer;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp;");
 
                 await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS ""PipelineStages"" (

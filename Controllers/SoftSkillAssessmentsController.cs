@@ -1,24 +1,19 @@
-using HRReserveSystem.Data;
+using System.Security.Claims;
 using HRReserveSystem.Models;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter,Interviewer")]
-public class SoftSkillAssessmentsController(ApplicationDbContext context) : Controller
+public class SoftSkillAssessmentsController(ISoftSkillAssessmentService assessmentService) : Controller
 {
     public async Task<IActionResult> Index()
     {
-        var assessments = context.SoftSkillAssessments
-            .AsNoTracking()
-            .Include(assessment => assessment.Candidate);
-
-        return View(await assessments
-            .OrderBy(assessment => assessment.Candidate!.FullName)
-            .ToListAsync());
+        var assessments = await assessmentService.GetAssessmentsAsync();
+        return View(assessments);
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -28,11 +23,7 @@ public class SoftSkillAssessmentsController(ApplicationDbContext context) : Cont
             return NotFound();
         }
 
-        var assessment = await context.SoftSkillAssessments
-            .AsNoTracking()
-            .Include(item => item.Candidate)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var assessment = await assessmentService.GetAssessmentDetailsAsync(id.Value);
         return assessment is null ? NotFound() : View(assessment);
     }
 
@@ -46,15 +37,16 @@ public class SoftSkillAssessmentsController(ApplicationDbContext context) : Cont
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create([Bind("CandidateId,Communication,Teamwork,Responsibility,StressResistance,Leadership,OverallComment")] SoftSkillAssessment assessment)
     {
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isInterviewer = User.IsInRole("Interviewer");
+
         if (!ModelState.IsValid)
         {
             await PopulateCandidatesSelectList(assessment.CandidateId);
             return View(assessment);
         }
 
-        context.Add(assessment);
-        await context.SaveChangesAsync();
-
+        await assessmentService.CreateAssessmentAsync(assessment, currentRecruiterId, isInterviewer);
         return RedirectToAction(nameof(Index));
     }
 
@@ -65,7 +57,15 @@ public class SoftSkillAssessmentsController(ApplicationDbContext context) : Cont
             return NotFound();
         }
 
-        var assessment = await context.SoftSkillAssessments.FindAsync(id);
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
+
+        var (assessment, forbidden) = await assessmentService.GetAssessmentForEditAsync(id.Value, currentRecruiterId, isAdmin);
+        if (forbidden)
+        {
+            return Forbid();
+        }
+
         if (assessment is null)
         {
             return NotFound();
@@ -77,12 +77,15 @@ public class SoftSkillAssessmentsController(ApplicationDbContext context) : Cont
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("Id,CandidateId,Communication,Teamwork,Responsibility,StressResistance,Leadership,OverallComment")] SoftSkillAssessment assessment)
+    public async Task<IActionResult> Edit(int id, [Bind("Id,CandidateId,RecruiterId,Communication,Teamwork,Responsibility,StressResistance,Leadership,OverallComment,CreatedAt")] SoftSkillAssessment assessment)
     {
         if (id != assessment.Id)
         {
             return NotFound();
         }
+
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
 
         if (!ModelState.IsValid)
         {
@@ -90,19 +93,15 @@ public class SoftSkillAssessmentsController(ApplicationDbContext context) : Cont
             return View(assessment);
         }
 
-        try
+        var (success, error, forbidden) = await assessmentService.UpdateAssessmentAsync(assessment, currentRecruiterId, isAdmin);
+        if (forbidden)
         {
-            context.Update(assessment);
-            await context.SaveChangesAsync();
+            return Forbid();
         }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await AssessmentExists(assessment.Id))
-            {
-                return NotFound();
-            }
 
-            throw;
+        if (!success)
+        {
+            return NotFound();
         }
 
         return RedirectToAction(nameof(Index));
@@ -115,24 +114,35 @@ public class SoftSkillAssessmentsController(ApplicationDbContext context) : Cont
             return NotFound();
         }
 
-        var assessment = await context.SoftSkillAssessments
-            .AsNoTracking()
-            .Include(item => item.Candidate)
-            .FirstOrDefaultAsync(item => item.Id == id);
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
 
-        return assessment is null ? NotFound() : View(assessment);
+        var (assessment, forbidden) = await assessmentService.GetAssessmentForEditAsync(id.Value, currentRecruiterId, isAdmin);
+        if (forbidden)
+        {
+            return Forbid();
+        }
+
+        if (assessment is null)
+        {
+            return NotFound();
+        }
+
+        var details = await assessmentService.GetAssessmentDetailsAsync(id.Value);
+        return details is null ? NotFound() : View(details);
     }
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var assessment = await context.SoftSkillAssessments.FindAsync(id);
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
 
-        if (assessment is not null)
+        var (success, error, forbidden) = await assessmentService.DeleteAssessmentAsync(id, currentRecruiterId, isAdmin);
+        if (forbidden)
         {
-            context.SoftSkillAssessments.Remove(assessment);
-            await context.SaveChangesAsync();
+            return Forbid();
         }
 
         return RedirectToAction(nameof(Index));
@@ -140,17 +150,14 @@ public class SoftSkillAssessmentsController(ApplicationDbContext context) : Cont
 
     private async Task PopulateCandidatesSelectList(int? selectedCandidateId = null)
     {
-        var candidates = await context.Candidates
-            .AsNoTracking()
-            .Where(candidate => !candidate.IsDeleted)
-            .OrderBy(candidate => candidate.FullName)
-            .ToListAsync();
-
+        var candidates = await assessmentService.GetCandidatesDropdownAsync();
         ViewData["CandidateId"] = new SelectList(candidates, "Id", "FullName", selectedCandidateId);
     }
 
-    private async Task<bool> AssessmentExists(int id)
+    private async Task<int?> GetCurrentRecruiterId()
     {
-        return await context.SoftSkillAssessments.AnyAsync(item => item.Id == id);
+        return await assessmentService.GetRecruiterIdForUserAsync(
+            User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim),
+            User.FindFirstValue(ClaimTypes.NameIdentifier));
     }
 }

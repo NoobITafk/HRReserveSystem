@@ -38,4 +38,11 @@ public class SoftSkillAssessment
     public double AverageScore => Math.Round((Communication + Teamwork + Responsibility + StressResistance + Leadership) / 5.0, 1);
 
     public Candidate? Candidate { get; set; }
+
+    [Display(Name = "Оцінювач")]
+    public int? RecruiterId { get; set; }
+    public Recruiter? Recruiter { get; set; }
+
+    [Display(Name = "Дата оцінки")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
