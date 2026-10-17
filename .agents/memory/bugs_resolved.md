@@ -16,3 +16,8 @@
 - **Symptom:** Long polling loops querying task status causing excessive token burn and latency.
 - **Root Cause:** Polling instead of letting the platform reactive wakeup resume execution.
 - **Fix:** Enforced reactive wakeup standard per guidelines: launch background task, stop calling tools, wait for system message.
+
+## BUG-004: SSH Commands Hanging on Remote Stdin / Pseudo-Terminal Allocation
+- **Symptom:** Remote commands run via OpenSSH on Windows hang indefinitely in background tasks waiting for input or terminal closure.
+- **Root Cause:** Interactive SSH session default allocates/waits on standard input buffers.
+- **Fix:** Always supply `-n -T -o BatchMode=yes -o ConnectTimeout=15` to ensure non-interactive execution that closes immediately on command completion.
