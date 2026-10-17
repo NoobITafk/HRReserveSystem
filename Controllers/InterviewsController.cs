@@ -11,106 +11,80 @@ using Microsoft.EntityFrameworkCore;
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter,Interviewer")]
-public class InterviewsController(ApplicationDbContext context, IEmailNotificationService emailNotificationService) : Controller
+public class InterviewsController(
+    IInterviewService interviewService,
+    IGoogleCalendarSyncService googleCalendarSync,
+    ApplicationDbContext context) : Controller
 {
     public async Task<IActionResult> Index(string? interviewType, string? result)
     {
-        IQueryable<Interview> interviews = context.Interviews
-            .AsNoTracking()
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Candidate)
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Vacancy)
-            .Include(interview => interview.Recruiter);
-
-        if (!string.IsNullOrWhiteSpace(interviewType))
-        {
-            interviews = interviews.Where(interview => interview.InterviewType == interviewType);
-        }
-
-        if (!string.IsNullOrWhiteSpace(result))
-        {
-            interviews = interviews.Where(interview => interview.Result == result);
-        }
+        var interviews = await interviewService.GetInterviewsAsync(interviewType, result);
 
         ViewData["InterviewTypeFilter"] = interviewType;
         ViewData["ResultFilter"] = result;
         ViewData["InterviewTypes"] = new SelectList(HrOptions.InterviewTypes, interviewType);
         ViewData["Results"] = new SelectList(HrOptions.InterviewResults, result);
 
-        return View(await interviews
-            .OrderByDescending(interview => interview.InterviewDate)
-            .ToListAsync());
+        return View(interviews);
     }
 
     public async Task<IActionResult> Calendar()
     {
-        var interviews = await context.Interviews
-            .AsNoTracking()
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Candidate)
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Vacancy)
-            .Include(interview => interview.Recruiter)
-            .OrderBy(interview => interview.InterviewDate)
-            .ToListAsync();
-
+        var interviews = await interviewService.GetCalendarInterviewsAsync();
         return View(interviews);
     }
 
     public async Task<IActionResult> ExportIcs(int? id = null)
     {
-        IQueryable<Interview> interviews = context.Interviews
-            .AsNoTracking()
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Candidate)
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Vacancy)
-            .Include(interview => interview.Recruiter);
-
         if (id.HasValue)
         {
-            interviews = interviews.Where(interview => interview.Id == id.Value);
+            var interview = await interviewService.GetInterviewDetailsAsync(id.Value);
+            if (interview is null) return NotFound();
+
+            var content = interviewService.GenerateIcsContent(interview);
+            return File(Encoding.UTF8.GetBytes(content), "text/calendar; charset=utf-8", $"interview-{id.Value}.ics");
         }
 
-        var items = await interviews
-            .OrderBy(interview => interview.InterviewDate)
-            .ToListAsync();
-
-        if (id.HasValue && items.Count == 0)
+        var allInterviews = await interviewService.GetCalendarInterviewsAsync();
+        var sb = new StringBuilder();
+        foreach (var interview in allInterviews)
         {
-            return NotFound();
+            sb.Append(interviewService.GenerateIcsContent(interview));
         }
 
-        var fileName = id.HasValue ? $"interview-{id.Value}.ics" : "interviews-calendar.ics";
-        return File(Encoding.UTF8.GetBytes(BuildIcsCalendar(items)), "text/calendar; charset=utf-8", fileName);
+        return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/calendar; charset=utf-8", "interviews-calendar.ics");
     }
 
     public async Task<IActionResult> GoogleCalendar(int id)
     {
-        var interview = await context.Interviews
-            .AsNoTracking()
-            .Include(item => item.Application)
-                .ThenInclude(application => application!.Candidate)
-            .Include(item => item.Application)
-                .ThenInclude(application => application!.Vacancy)
-            .Include(item => item.Recruiter)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var interview = await interviewService.GetInterviewDetailsAsync(id);
         if (interview is null)
         {
             return NotFound();
         }
 
-        var start = DateTime.SpecifyKind(interview.InterviewDate, DateTimeKind.Local).ToUniversalTime();
-        var end = start.AddHours(1);
-        var url = "https://calendar.google.com/calendar/render?action=TEMPLATE"
-            + $"&text={Uri.EscapeDataString(BuildCalendarSummary(interview))}"
-            + $"&dates={FormatIcsDate(start)}/{FormatIcsDate(end)}"
-            + $"&details={Uri.EscapeDataString(BuildCalendarDescription(interview))}"
-            + $"&location={Uri.EscapeDataString("HRReserveSystem")}";
+        return Redirect(interviewService.GetGoogleCalendarUrl(interview));
+    }
 
-        return Redirect(url);
+    [Authorize(Roles = "Admin,Recruiter")]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncGoogleCloud(int id)
+    {
+        var interview = await interviewService.GetInterviewDetailsAsync(id);
+        if (interview is null) return NotFound();
+
+        var (success, eventId, error) = await googleCalendarSync.CreateEventAsync(interview);
+        if (success)
+        {
+            TempData["SuccessMessage"] = $"Співбесіду #{id} успішно синхронізовано з Google Calendar (Event ID: {eventId}).";
+        }
+        else
+        {
+            TempData["ErrorMessage"] = $"Не вдалося синхронізувати з Google Calendar: {error}";
+        }
+
+        return RedirectToAction(nameof(Details), new { id });
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -120,17 +94,7 @@ public class InterviewsController(ApplicationDbContext context, IEmailNotificati
             return NotFound();
         }
 
-        var interview = await context.Interviews
-            .AsNoTracking()
-            .Include(item => item.Application)
-                .ThenInclude(application => application!.Candidate)
-            .Include(item => item.Application)
-                .ThenInclude(application => application!.Vacancy)
-            .Include(item => item.Recruiter)
-            .Include(item => item.Feedbacks)
-                .ThenInclude(feedback => feedback.Recruiter)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var interview = await interviewService.GetInterviewDetailsAsync(id.Value);
         return interview is null ? NotFound() : View(interview);
     }
 
@@ -154,10 +118,7 @@ public class InterviewsController(ApplicationDbContext context, IEmailNotificati
             return View(interview);
         }
 
-        context.Add(interview);
-        await context.SaveChangesAsync();
-        await emailNotificationService.SendInterviewScheduledAsync(interview.Id);
-
+        await interviewService.ScheduleInterviewAsync(interview);
         return RedirectToAction(nameof(Index));
     }
 
@@ -169,7 +130,7 @@ public class InterviewsController(ApplicationDbContext context, IEmailNotificati
             return NotFound();
         }
 
-        var interview = await context.Interviews.FindAsync(id);
+        var interview = await interviewService.GetInterviewDetailsAsync(id.Value);
         if (interview is null)
         {
             return NotFound();
@@ -197,20 +158,10 @@ public class InterviewsController(ApplicationDbContext context, IEmailNotificati
             return View(interview);
         }
 
-        try
+        var (success, error) = await interviewService.UpdateInterviewAsync(interview);
+        if (!success)
         {
-            context.Update(interview);
-            await context.SaveChangesAsync();
-            await emailNotificationService.SendInterviewUpdatedAsync(interview.Id);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await InterviewExists(interview.Id))
-            {
-                return NotFound();
-            }
-
-            throw;
+            return NotFound();
         }
 
         return RedirectToAction(nameof(Index));
@@ -224,15 +175,7 @@ public class InterviewsController(ApplicationDbContext context, IEmailNotificati
             return NotFound();
         }
 
-        var interview = await context.Interviews
-            .AsNoTracking()
-            .Include(item => item.Application)
-                .ThenInclude(application => application!.Candidate)
-            .Include(item => item.Application)
-                .ThenInclude(application => application!.Vacancy)
-            .Include(item => item.Recruiter)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var interview = await interviewService.GetInterviewDetailsAsync(id.Value);
         return interview is null ? NotFound() : View(interview);
     }
 
@@ -241,14 +184,7 @@ public class InterviewsController(ApplicationDbContext context, IEmailNotificati
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var interview = await context.Interviews.FindAsync(id);
-
-        if (interview is not null)
-        {
-            context.Interviews.Remove(interview);
-            await context.SaveChangesAsync();
-        }
-
+        await interviewService.DeleteInterviewAsync(id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -289,71 +225,5 @@ public class InterviewsController(ApplicationDbContext context, IEmailNotificati
         return int.TryParse(idValue, out var id) && await context.Recruiters.AnyAsync(recruiter => recruiter.Id == id)
             ? id
             : null;
-    }
-
-    private async Task<bool> InterviewExists(int id)
-    {
-        return await context.Interviews.AnyAsync(item => item.Id == id);
-    }
-
-    private static string BuildCalendarSummary(Interview interview)
-    {
-        var candidate = interview.Application?.Candidate?.FullName ?? "Кандидат";
-        var vacancy = interview.Application?.Vacancy?.Title ?? "Вакансія";
-        return $"{interview.InterviewType}: {candidate} - {vacancy}";
-    }
-
-    private static string BuildCalendarDescription(Interview interview)
-    {
-        var recruiter = interview.Recruiter?.FullName ?? "Не призначено";
-        var notes = string.IsNullOrWhiteSpace(interview.Notes) ? "Немає" : interview.Notes;
-
-        return $"Результат: {interview.Result}\nРекрутер: {recruiter}\nНотатки: {notes}";
-    }
-
-    private static string BuildIcsCalendar(IEnumerable<Interview> interviews)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine("BEGIN:VCALENDAR");
-        builder.AppendLine("VERSION:2.0");
-        builder.AppendLine("PRODID:-//HRReserveSystem//Interview Calendar//UK");
-        builder.AppendLine("CALSCALE:GREGORIAN");
-        builder.AppendLine("METHOD:PUBLISH");
-
-        foreach (var interview in interviews)
-        {
-            var start = DateTime.SpecifyKind(interview.InterviewDate, DateTimeKind.Local).ToUniversalTime();
-            var end = start.AddHours(1);
-            var summary = BuildCalendarSummary(interview);
-            var description = BuildCalendarDescription(interview);
-
-            builder.AppendLine("BEGIN:VEVENT");
-            builder.AppendLine($"UID:hrreserve-interview-{interview.Id}@hrreserve.local");
-            builder.AppendLine($"DTSTAMP:{FormatIcsDate(DateTime.UtcNow)}");
-            builder.AppendLine($"DTSTART:{FormatIcsDate(start)}");
-            builder.AppendLine($"DTEND:{FormatIcsDate(end)}");
-            builder.AppendLine($"SUMMARY:{EscapeIcsText(summary)}");
-            builder.AppendLine($"DESCRIPTION:{EscapeIcsText(description)}");
-            builder.AppendLine("LOCATION:HRReserveSystem");
-            builder.AppendLine("END:VEVENT");
-        }
-
-        builder.AppendLine("END:VCALENDAR");
-        return builder.ToString();
-    }
-
-    private static string FormatIcsDate(DateTime value)
-    {
-        return value.ToUniversalTime().ToString("yyyyMMdd'T'HHmmss'Z'");
-    }
-
-    private static string EscapeIcsText(string? value)
-    {
-        return (value ?? string.Empty)
-            .Replace("\\", "\\\\")
-            .Replace(";", "\\;")
-            .Replace(",", "\\,")
-            .Replace("\r\n", "\\n")
-            .Replace("\n", "\\n");
     }
 }

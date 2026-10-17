@@ -62,6 +62,10 @@ builder.Services.AddScoped<IObjectStorageService>(sp =>
 builder.Services.AddScoped<ICandidateFileStorageService, CandidateFileStorageService>();
 builder.Services.AddScoped<ICandidateExportService, CandidateExportService>();
 builder.Services.AddScoped<ICandidateApplicationService, CandidateApplicationService>();
+builder.Services.AddScoped<IVacancyService, VacancyService>();
+builder.Services.AddScoped<IInterviewService, InterviewService>();
+builder.Services.Configure<GoogleCalendarOptions>(builder.Configuration.GetSection("GoogleCalendar"));
+builder.Services.AddScoped<IGoogleCalendarSyncService, GoogleCalendarSyncService>();
 builder.Services.AddScoped<ResumeIntelligenceService>();
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])

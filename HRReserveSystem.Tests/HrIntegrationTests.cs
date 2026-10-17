@@ -1422,6 +1422,47 @@ Senior .NET Developer, 7 років досвіду
         Assert.Equal("Interview", updated.Status);
     }
 
+    [Fact]
+    public async Task VacancyService_Creates_And_Retrieves_Vacancies()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var vacancyService = scope.ServiceProvider.GetRequiredService<IVacancyService>();
+
+        var vacancy = new Vacancy
+        {
+            Title = "Senior DevOps Engineer",
+            Description = "Керування хмарною інфраструктурою",
+            Requirements = "Kubernetes, Terraform, CI/CD",
+            SalaryMin = 3000,
+            SalaryMax = 5000,
+            Status = "Open"
+        };
+
+        var created = await vacancyService.CreateVacancyAsync(vacancy);
+        Assert.True(created.Id > 0);
+
+        var retrieved = await vacancyService.GetVacancyDetailsAsync(created.Id);
+        Assert.NotNull(retrieved);
+        Assert.Equal("Senior DevOps Engineer", retrieved.Title);
+    }
+
+    [Fact]
+    public async Task InterviewService_Generates_Valid_Ics_Content()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var interviewService = scope.ServiceProvider.GetRequiredService<IInterviewService>();
+
+        var interview = await interviewService.GetInterviewDetailsAsync(1);
+        Assert.NotNull(interview);
+
+        var ics = interviewService.GenerateIcsContent(interview);
+        Assert.Contains("BEGIN:VCALENDAR", ics);
+        Assert.Contains("BEGIN:VEVENT", ics);
+        Assert.Contains("END:VCALENDAR", ics);
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

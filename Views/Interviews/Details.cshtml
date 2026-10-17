@@ -15,7 +15,14 @@
     </div>
     <div class="d-flex flex-wrap gap-2">
         <a class="btn btn-primary" asp-controller="InterviewFeedbacks" asp-action="Create" asp-route-interviewId="@Model.Id"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Додати відгук</a>
-        <a class="btn btn-outline-primary" asp-action="GoogleCalendar" asp-route-id="@Model.Id" target="_blank" rel="noopener">Google Calendar</a>
+        <a class="btn btn-outline-primary" asp-action="GoogleCalendar" asp-route-id="@Model.Id" target="_blank" rel="noopener">Google Calendar (посилання)</a>
+        @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
+        {
+            <form asp-action="SyncGoogleCloud" asp-route-id="@Model.Id" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-outline-primary">Синхронізувати з Google</button>
+            </form>
+        }
         <a class="btn btn-outline-secondary" asp-action="ExportIcs" asp-route-id="@Model.Id">Експорт .ics</a>
         @if (User.IsInRole("Admin") || User.IsInRole("Recruiter"))
         {

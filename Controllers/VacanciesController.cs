@@ -1,37 +1,24 @@
-using HRReserveSystem.Data;
 using HRReserveSystem.Models;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter,Candidate")]
-public class VacanciesController(ApplicationDbContext context) : Controller
+public class VacanciesController(IVacancyService vacancyService) : Controller
 {
     public async Task<IActionResult> Index(string? search, string? status, bool showArchived = false)
     {
-        var vacancies = context.Vacancies.AsNoTracking().Where(vacancy => vacancy.IsArchived == showArchived);
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            vacancies = vacancies.Where(vacancy => vacancy.Title.Contains(search));
-        }
-
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            vacancies = vacancies.Where(vacancy => vacancy.Status == status);
-        }
+        var vacancies = await vacancyService.GetVacanciesAsync(search, status, showArchived);
 
         ViewData["CurrentFilter"] = search;
         ViewData["StatusFilter"] = status;
         ViewData["ShowArchived"] = showArchived;
         ViewData["Statuses"] = new SelectList(HrOptions.VacancyStatuses, status);
 
-        return View(await vacancies
-            .OrderByDescending(vacancy => vacancy.CreatedAt)
-            .ToListAsync());
+        return View(vacancies);
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -41,12 +28,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
             return NotFound();
         }
 
-        var vacancy = await context.Vacancies
-            .AsNoTracking()
-            .Include(item => item.Applications)
-                .ThenInclude(application => application.Candidate)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var vacancy = await vacancyService.GetVacancyDetailsAsync(id.Value);
         return vacancy is null ? NotFound() : View(vacancy);
     }
 
@@ -58,6 +40,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,Recruiter")]
     public async Task<IActionResult> Create([Bind("Title,Description,Requirements,SalaryMin,SalaryMax,Status")] Vacancy vacancy)
     {
         if (!ModelState.IsValid)
@@ -65,10 +48,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
             return View(vacancy);
         }
 
-        vacancy.CreatedAt = DateTime.UtcNow;
-        context.Add(vacancy);
-        await context.SaveChangesAsync();
-
+        await vacancyService.CreateVacancyAsync(vacancy);
         return RedirectToAction(nameof(Index));
     }
 
@@ -80,12 +60,13 @@ public class VacanciesController(ApplicationDbContext context) : Controller
             return NotFound();
         }
 
-        var vacancy = await context.Vacancies.FindAsync(id);
+        var vacancy = await vacancyService.GetVacancyDetailsAsync(id.Value);
         return vacancy is null ? NotFound() : View(vacancy);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,Recruiter")]
     public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,Requirements,SalaryMin,SalaryMax,Status,CreatedAt")] Vacancy vacancy)
     {
         if (id != vacancy.Id)
@@ -98,19 +79,10 @@ public class VacanciesController(ApplicationDbContext context) : Controller
             return View(vacancy);
         }
 
-        try
+        var (success, error) = await vacancyService.UpdateVacancyAsync(vacancy);
+        if (!success)
         {
-            context.Update(vacancy);
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await VacancyExists(vacancy.Id))
-            {
-                return NotFound();
-            }
-
-            throw;
+            return NotFound();
         }
 
         return RedirectToAction(nameof(Index));
@@ -124,25 +96,16 @@ public class VacanciesController(ApplicationDbContext context) : Controller
             return NotFound();
         }
 
-        var vacancy = await context.Vacancies
-            .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var vacancy = await vacancyService.GetVacancyDetailsAsync(id.Value);
         return vacancy is null ? NotFound() : View(vacancy);
     }
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,Recruiter")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var vacancy = await context.Vacancies.FindAsync(id);
-
-        if (vacancy is not null)
-        {
-            vacancy.IsArchived = true;
-            await context.SaveChangesAsync();
-        }
-
+        await vacancyService.ToggleArchiveAsync(id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -151,19 +114,7 @@ public class VacanciesController(ApplicationDbContext context) : Controller
     [Authorize(Roles = "Admin,Recruiter")]
     public async Task<IActionResult> Restore(int id)
     {
-        var vacancy = await context.Vacancies.FirstOrDefaultAsync(item => item.Id == id && item.IsArchived);
-
-        if (vacancy is not null)
-        {
-            vacancy.IsArchived = false;
-            await context.SaveChangesAsync();
-        }
-
+        await vacancyService.ToggleArchiveAsync(id);
         return RedirectToAction(nameof(Index), new { showArchived = true });
-    }
-
-    private async Task<bool> VacancyExists(int id)
-    {
-        return await context.Vacancies.AnyAsync(item => item.Id == id);
     }
 }
