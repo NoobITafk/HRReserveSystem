@@ -25,17 +25,31 @@ public class CandidatesController(
     private static readonly string[] AllowedResumeExtensions = [".pdf", ".doc", ".docx"];
     private static readonly string[] AllowedAvatarExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 
-    public async Task<IActionResult> Index(string? search, int? minExperience, bool showHidden = false)
+    public async Task<IActionResult> Index(string? search, int? minExperience, bool showHidden = false, int page = 1)
     {
-        var candidates = ApplyFilters(context.Candidates.AsNoTracking().Where(candidate => candidate.IsDeleted == showHidden), search, minExperience);
+        const int pageSize = 25;
+        if (page < 1) page = 1;
+
+        var query = ApplyFilters(context.Candidates.AsNoTracking().Where(candidate => candidate.IsDeleted == showHidden), search, minExperience);
+
+        var totalItems = await query.CountAsync();
+        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+        if (totalPages > 0 && page > totalPages) page = totalPages;
+
+        var candidates = await query
+            .OrderBy(candidate => candidate.FullName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 
         ViewData["CurrentFilter"] = search;
         ViewData["MinExperience"] = minExperience;
         ViewData["ShowHidden"] = showHidden;
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalItems = totalItems;
 
-        return View(await candidates
-            .OrderBy(candidate => candidate.FullName)
-            .ToListAsync());
+        return View(candidates);
     }
 
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("ExportPolicy")]
@@ -550,6 +564,7 @@ public class CandidatesController(
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendMessageAjax([FromBody] SendCandidateMessageRequest request)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Subject) || string.IsNullOrWhiteSpace(request.Body))
@@ -650,6 +665,7 @@ public class CandidatesController(
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddNoteAjax([FromBody] AddCandidateNoteRequest request)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Note))
@@ -706,6 +722,7 @@ public class CandidatesController(
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public IActionResult QuickImportParse([FromBody] QuickImportParseRequest request)
     {
         if (request is null || string.IsNullOrWhiteSpace(request.RawText))

@@ -16,24 +16,34 @@ public class ApplicationsController(
     ApplicationDbContext context,
     ICandidateApplicationService applicationService) : Controller
 {
-    public async Task<IActionResult> Index(string? status)
+    public async Task<IActionResult> Index(string? status, int page = 1)
     {
+        const int pageSize = 25;
         IQueryable<Application> applications = context.Applications
             .AsNoTracking()
             .Include(application => application.Candidate)
-            .Include(application => application.Vacancy);
+            .Include(application => application.Vacancy)
+            .Where(application => application.Candidate != null && !application.Candidate.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(status))
         {
             applications = applications.Where(application => application.Status == status);
         }
 
+        var totalItems = await applications.CountAsync();
+        var pagedApplications = await applications
+            .OrderByDescending(application => application.AppliedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
         ViewData["StatusFilter"] = status;
         ViewData["Statuses"] = new SelectList(HrOptions.ApplicationStatuses, status);
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)pageSize));
+        ViewBag.TotalItems = totalItems;
 
-        return View(await applications
-            .OrderByDescending(application => application.AppliedAt)
-            .ToListAsync());
+        return View(pagedApplications);
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -225,7 +235,8 @@ public class ApplicationsController(
             .Include(a => a.Candidate)
             .Include(a => a.Vacancy)
             .Include(a => a.Interviews)
-            .Include(a => a.Stage);
+            .Include(a => a.Stage)
+            .Where(a => a.Candidate != null && !a.Candidate.IsDeleted);
 
         if (vacancyId.HasValue && vacancyId.Value > 0)
         {
@@ -256,6 +267,7 @@ public class ApplicationsController(
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateStatusAjax([FromBody] UpdateStatusAjaxRequest request)
     {
         if (request is null || !HrOptions.ApplicationStatuses.Contains(request.Status))

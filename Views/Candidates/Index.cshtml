@@ -4,6 +4,11 @@
     ViewData["Title"] = "Кандидати";
     var showHidden = ViewData["ShowHidden"] as bool? == true;
     var totalCount = Model.Count();
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalItems = ViewBag.TotalItems as int? ?? 0;
+    var currentSearch = ViewData["CurrentFilter"] as string;
+    var currentExp = ViewData["MinExperience"] as int?;
 }
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
@@ -144,6 +149,23 @@
                 </tbody>
             </table>
         </div>
+
+        if (totalPages > 1)
+        {
+            <div class="card-footer bg-surface border-top d-flex justify-content-between align-items-center py-2 px-3">
+                <span class="small text-muted">Показано @Model.Count() із @totalItems кандидатів (сторінка @currentPage з @totalPages)</span>
+                <div class="d-flex gap-1">
+                    @if (currentPage > 1)
+                    {
+                        <a asp-action="Index" asp-route-page="@(currentPage - 1)" asp-route-search="@currentSearch" asp-route-minExperience="@currentExp" asp-route-showHidden="@showHidden" class="btn btn-sm btn-outline-secondary">Назад</a>
+                    }
+                    @if (currentPage < totalPages)
+                    {
+                        <a asp-action="Index" asp-route-page="@(currentPage + 1)" asp-route-search="@currentSearch" asp-route-minExperience="@currentExp" asp-route-showHidden="@showHidden" class="btn btn-sm btn-outline-secondary">Вперед</a>
+                    }
+                </div>
+            </div>
+        }
     }
     else
     {

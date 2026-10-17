@@ -477,6 +477,9 @@ public static class SeedData
                     CREATE INDEX IF NOT EXISTS ""IX_Candidates_IsDeleted_FullName"" ON ""Candidates"" (""IsDeleted"", ""FullName"");
                     CREATE INDEX IF NOT EXISTS ""IX_Applications_Status"" ON ""Applications"" (""Status"");
                     CREATE INDEX IF NOT EXISTS ""IX_Applications_StageId"" ON ""Applications"" (""StageId"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Vacancies_Status"" ON ""Vacancies"" (""Status"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Vacancies_CreatedAt"" ON ""Vacancies"" (""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Interviews_InterviewDate"" ON ""Interviews"" (""InterviewDate"");
                 ");
             }
             else
@@ -550,6 +553,9 @@ public static class SeedData
                     CREATE INDEX IF NOT EXISTS ""IX_Candidates_IsDeleted_FullName"" ON ""Candidates"" (""IsDeleted"", ""FullName"");
                     CREATE INDEX IF NOT EXISTS ""IX_Applications_Status"" ON ""Applications"" (""Status"");
                     CREATE INDEX IF NOT EXISTS ""IX_Applications_StageId"" ON ""Applications"" (""StageId"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Vacancies_Status"" ON ""Vacancies"" (""Status"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Vacancies_CreatedAt"" ON ""Vacancies"" (""CreatedAt"");
+                    CREATE INDEX IF NOT EXISTS ""IX_Interviews_InterviewDate"" ON ""Interviews"" (""InterviewDate"");
                 ");
             }
         }

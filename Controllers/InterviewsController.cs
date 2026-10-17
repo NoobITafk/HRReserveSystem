@@ -16,14 +16,17 @@ public class InterviewsController(
     IGoogleCalendarSyncService googleCalendarSync,
     ApplicationDbContext context) : Controller
 {
-    public async Task<IActionResult> Index(string? interviewType, string? result)
+    public async Task<IActionResult> Index(string? interviewType, string? result, int page = 1)
     {
-        var interviews = await interviewService.GetInterviewsAsync(interviewType, result);
+        var (interviews, totalItems, totalPages) = await interviewService.GetInterviewsAsync(interviewType, result, page, 25);
 
         ViewData["InterviewTypeFilter"] = interviewType;
         ViewData["ResultFilter"] = result;
         ViewData["InterviewTypes"] = new SelectList(HrOptions.InterviewTypes, interviewType);
         ViewData["Results"] = new SelectList(HrOptions.InterviewResults, result);
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalItems = totalItems;
 
         return View(interviews);
     }

@@ -50,6 +50,10 @@ public class ResumeIntelligenceService
             {
                 extractedText = ExtractTextFromPdf(fullFilePath);
             }
+            else if (ext == ".docx")
+            {
+                extractedText = ExtractTextFromDocx(fullFilePath);
+            }
             else
             {
                 // Fallback / plain text reading
@@ -115,6 +119,32 @@ public class ResumeIntelligenceService
 
         var res = sb.ToString().Trim();
         return string.IsNullOrWhiteSpace(res) ? "Резюме завантажено у форматі PDF (графічний або сканований документ)." : res;
+    }
+
+    private static string ExtractTextFromDocx(string docxPath)
+    {
+        try
+        {
+            using var zip = System.IO.Compression.ZipFile.OpenRead(docxPath);
+            var entry = zip.GetEntry("word/document.xml");
+            if (entry is null) return string.Empty;
+
+            using var stream = entry.Open();
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            var xml = reader.ReadToEnd();
+
+            // Replace paragraph & break tags with spaces/newlines
+            xml = Regex.Replace(xml, @"<(?:w:p|/w:p|w:br)[^>]*>", " ");
+            // Strip remaining xml tags
+            var text = Regex.Replace(xml, @"<[^>]+>", "");
+            // Normalize spaces
+            text = Regex.Replace(text, @"\s+", " ").Trim();
+            return text;
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
     }
 
     private static string ExtractReadableStringsFromStream(string streamContent)

@@ -4,7 +4,7 @@ namespace HRReserveSystem.Services;
 
 public interface IInterviewService
 {
-    Task<List<Interview>> GetInterviewsAsync(string? interviewType, string? result, CancellationToken ct = default);
+    Task<(List<Interview> Items, int TotalItems, int TotalPages)> GetInterviewsAsync(string? interviewType, string? result, int page = 1, int pageSize = 25, CancellationToken ct = default);
     Task<List<Interview>> GetCalendarInterviewsAsync(CancellationToken ct = default);
     Task<Interview?> GetInterviewDetailsAsync(int id, CancellationToken ct = default);
     Task<Interview> ScheduleInterviewAsync(Interview interview, CancellationToken ct = default);

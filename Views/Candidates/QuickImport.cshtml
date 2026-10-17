@@ -133,10 +133,13 @@ Senior .NET Engineer, 6 років досвіду в розробці.
             btnParse.disabled = true;
             btnParse.innerHTML = "Розпізнавання...";
 
-            try {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value || document.querySelector('meta[name="csrf-token"]')?.content || "";
                 const response = await fetch("/Candidates/QuickImportParse", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        "RequestVerificationToken": token
+                    },
                     body: JSON.stringify({ rawText: text })
                 });
 

@@ -9,8 +9,11 @@ public class VacancyService(
     IAuditService auditService,
     ILogger<VacancyService> logger) : IVacancyService
 {
-    public async Task<List<Vacancy>> GetVacanciesAsync(string? search, string? status, bool showArchived = false, CancellationToken ct = default)
+    public async Task<(List<Vacancy> Items, int TotalItems, int TotalPages)> GetVacanciesAsync(string? search, string? status, bool showArchived = false, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 25;
+
         var query = context.Vacancies.AsNoTracking().Where(vacancy => vacancy.IsArchived == showArchived);
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -23,9 +26,17 @@ public class VacancyService(
             query = query.Where(vacancy => vacancy.Status == status);
         }
 
-        return await query
+        var totalItems = await query.CountAsync(ct);
+        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+        if (totalPages > 0 && page > totalPages) page = totalPages;
+
+        var items = await query
             .OrderByDescending(vacancy => vacancy.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
+
+        return (items, totalItems, totalPages);
     }
 
     public async Task<Vacancy?> GetVacancyDetailsAsync(int id, CancellationToken ct = default)

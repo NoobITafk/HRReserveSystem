@@ -11,8 +11,11 @@ public class InterviewService(
     IAuditService auditService,
     ILogger<InterviewService> logger) : IInterviewService
 {
-    public async Task<List<Interview>> GetInterviewsAsync(string? interviewType, string? result, CancellationToken ct = default)
+    public async Task<(List<Interview> Items, int TotalItems, int TotalPages)> GetInterviewsAsync(string? interviewType, string? result, int page = 1, int pageSize = 25, CancellationToken ct = default)
     {
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 25;
+
         IQueryable<Interview> query = context.Interviews
             .AsNoTracking()
             .Include(interview => interview.Application)
@@ -20,6 +23,8 @@ public class InterviewService(
             .Include(interview => interview.Application)
                 .ThenInclude(application => application!.Vacancy)
             .Include(interview => interview.Recruiter);
+
+        query = query.Where(interview => interview.Application == null || interview.Application.Candidate == null || !interview.Application.Candidate.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(interviewType))
         {
@@ -31,9 +36,17 @@ public class InterviewService(
             query = query.Where(interview => interview.Result == result);
         }
 
-        return await query
+        var totalItems = await query.CountAsync(ct);
+        var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+        if (totalPages > 0 && page > totalPages) page = totalPages;
+
+        var items = await query
             .OrderByDescending(interview => interview.InterviewDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
+
+        return (items, totalItems, totalPages);
     }
 
     public async Task<List<Interview>> GetCalendarInterviewsAsync(CancellationToken ct = default)
@@ -45,6 +58,7 @@ public class InterviewService(
             .Include(interview => interview.Application)
                 .ThenInclude(application => application!.Vacancy)
             .Include(interview => interview.Recruiter)
+            .Where(interview => interview.Application == null || interview.Application.Candidate == null || !interview.Application.Candidate.IsDeleted)
             .OrderBy(interview => interview.InterviewDate)
             .ToListAsync(ct);
     }

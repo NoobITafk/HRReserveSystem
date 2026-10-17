@@ -24,6 +24,13 @@
         return theme === "dark" ? "dark" : "light";
     }
 
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        if (meta && meta.content) return meta.content;
+        const input = document.querySelector('input[name="__RequestVerificationToken"]');
+        return input ? input.value : "";
+    }
+
     function getSavedTheme() {
         return normalizeTheme(safeGet(themeStorageKey));
     }
@@ -377,7 +384,10 @@
                 try {
                     const response = await fetch("/Applications/UpdateStatusAjax", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            "RequestVerificationToken": getCsrfToken()
+                        },
                         body: JSON.stringify({ id: appId, status: targetStatus, stageId: stageId })
                     });
 
@@ -644,7 +654,10 @@
                 try {
                     const res = await fetch("/Candidates/AddNoteAjax", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            "RequestVerificationToken": getCsrfToken()
+                        },
                         body: JSON.stringify({ candidateId: currentCandidateId, note: note })
                     });
                     if (!res.ok) throw new Error("Помилка збереження");
@@ -790,7 +803,10 @@
                 try {
                     const res = await fetch("/Candidates/SendMessageAjax", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            "RequestVerificationToken": getCsrfToken()
+                        },
                         body: JSON.stringify({
                             candidateId: activeCandidateId,
                             subject: subj,

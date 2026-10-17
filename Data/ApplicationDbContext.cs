@@ -37,10 +37,20 @@ public class ApplicationDbContext(DbContextOptions options) : IdentityDbContext<
 
         modelBuilder.Entity<Candidate>()
             .HasIndex(candidate => candidate.Email)
-            .IsUnique();
+            .IsUnique()
+            .HasFilter(Database.IsSqlite() ? "\"IsDeleted\" = 0" : "\"IsDeleted\" = FALSE");
 
         modelBuilder.Entity<Candidate>()
             .HasIndex(candidate => new { candidate.IsDeleted, candidate.FullName });
+
+        modelBuilder.Entity<Vacancy>()
+            .HasIndex(v => v.Status);
+
+        modelBuilder.Entity<Vacancy>()
+            .HasIndex(v => v.CreatedAt);
+
+        modelBuilder.Entity<Interview>()
+            .HasIndex(i => i.InterviewDate);
 
         modelBuilder.Entity<AuditLog>()
             .HasIndex(log => new { log.Action, log.CreatedAt });

@@ -9,14 +9,17 @@ namespace HRReserveSystem.Controllers;
 [Authorize(Roles = "Admin,Recruiter,Candidate")]
 public class VacanciesController(IVacancyService vacancyService) : Controller
 {
-    public async Task<IActionResult> Index(string? search, string? status, bool showArchived = false)
+    public async Task<IActionResult> Index(string? search, string? status, bool showArchived = false, int page = 1)
     {
-        var vacancies = await vacancyService.GetVacanciesAsync(search, status, showArchived);
+        var (vacancies, totalItems, totalPages) = await vacancyService.GetVacanciesAsync(search, status, showArchived, page, 25);
 
         ViewData["CurrentFilter"] = search;
         ViewData["StatusFilter"] = status;
         ViewData["ShowArchived"] = showArchived;
         ViewData["Statuses"] = new SelectList(HrOptions.VacancyStatuses, status);
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.TotalItems = totalItems;
 
         return View(vacancies);
     }

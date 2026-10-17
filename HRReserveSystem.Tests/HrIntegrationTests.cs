@@ -899,9 +899,15 @@ public class HrIntegrationTests
         using var client = CreateClient(factory);
         await LoginAsync(client, "recruiter", "recruiter123");
 
+        var token = await GetAntiforgeryTokenAsync(client, "/Applications/Kanban");
         var content = JsonContent.Create(new { Id = 1, Status = "Interview" });
+        var req = new HttpRequestMessage(HttpMethod.Post, "/Applications/UpdateStatusAjax")
+        {
+            Content = content
+        };
+        req.Headers.Add("RequestVerificationToken", token);
 
-        var response = await client.PostAsync("/Applications/UpdateStatusAjax", content);
+        var response = await client.SendAsync(req);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -939,8 +945,15 @@ public class HrIntegrationTests
         using var client = CreateClient(factory);
         await LoginAsync(client, "recruiter", "recruiter123");
 
+        var token = await GetAntiforgeryTokenAsync(client, "/Candidates/Index");
         var content = JsonContent.Create(new { CandidateId = 1, ApplicationId = (int?)null, Note = "Перевірено навички, гарне враження" });
-        var response = await client.PostAsync("/Candidates/AddNoteAjax", content);
+        var req = new HttpRequestMessage(HttpMethod.Post, "/Candidates/AddNoteAjax")
+        {
+            Content = content
+        };
+        req.Headers.Add("RequestVerificationToken", token);
+
+        var response = await client.SendAsync(req);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -964,9 +977,15 @@ dmitry.kravchenko@gmail.com
 Senior .NET Developer, 7 років досвіду
 Стек: C#, .NET, PostgreSQL, Docker, React, AWS";
 
+        var token = await GetAntiforgeryTokenAsync(client, "/Candidates/QuickImport");
         var content = JsonContent.Create(new { RawText = rawText });
+        var req = new HttpRequestMessage(HttpMethod.Post, "/Candidates/QuickImportParse")
+        {
+            Content = content
+        };
+        req.Headers.Add("RequestVerificationToken", token);
 
-        var response = await client.PostAsync("/Candidates/QuickImportParse", content);
+        var response = await client.SendAsync(req);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var json = await response.Content.ReadAsStringAsync();
@@ -1057,6 +1076,7 @@ Senior .NET Developer, 7 років досвіду
         using var client = CreateClient(factory);
         await LoginAsync(client, "recruiter", "recruiter123");
 
+        var token = await GetAntiforgeryTokenAsync(client, "/Candidates/Details/1");
         var payload = new
         {
             CandidateId = 1,
@@ -1066,7 +1086,13 @@ Senior .NET Developer, 7 років досвіду
             TemplateType = "screening"
         };
 
-        var response = await client.PostAsync("/Candidates/SendMessageAjax", JsonContent.Create(payload));
+        var req = new HttpRequestMessage(HttpMethod.Post, "/Candidates/SendMessageAjax")
+        {
+            Content = JsonContent.Create(payload)
+        };
+        req.Headers.Add("RequestVerificationToken", token);
+
+        var response = await client.SendAsync(req);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadAsStringAsync();
         Assert.Contains("\"success\":true", json);
