@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Json;
+using System.Text;
 using System.Text.RegularExpressions;
 using HRReserveSystem.Data;
 using HRReserveSystem.Models;
@@ -870,6 +872,110 @@ public class HrIntegrationTests
         Assert.Contains("Останні експертні відгуки", html);
         Assert.Contains("Матриця оцінок Soft Skills", html);
         Assert.Contains("Швидкі дії інтерв'юера", html);
+    }
+
+    [Fact]
+    public async Task Kanban_Page_Loads_And_Renders_Pipeline_Stages()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var response = await client.GetAsync("/Applications/Kanban");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Канбан-дошка пайплайну", html);
+        Assert.Contains("kanban-board", html);
+        Assert.Contains("kanban-column", html);
+        Assert.Contains("HR-скринінг", html);
+        Assert.Contains("Співбесіди", html);
+        Assert.Contains("Оффер", html);
+    }
+
+    [Fact]
+    public async Task Applications_UpdateStatusAjax_Updates_Stage_Successfully()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var content = JsonContent.Create(new { Id = 1, Status = "Interview" });
+
+        var response = await client.PostAsync("/Applications/UpdateStatusAjax", content);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"success\":true", json);
+        Assert.Contains("\"status\":\"Interview\"", json);
+
+        // Verify in DB
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var app = await db.Applications.FirstAsync(a => a.Id == 1);
+        Assert.Equal("Interview", app.Status);
+    }
+
+    [Fact]
+    public async Task Candidates_QuickViewJson_Returns_Candidate_Details()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var response = await client.GetAsync("/Candidates/QuickViewJson?id=1");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"success\":true", json);
+        Assert.Contains("\"fullName\":", json);
+        Assert.Contains("\"email\":", json);
+        Assert.Contains("\"applications\":", json);
+    }
+
+    [Fact]
+    public async Task Candidates_AddNoteAjax_Saves_Recruiter_Comment()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var content = JsonContent.Create(new { CandidateId = 1, ApplicationId = (int?)null, Note = "Перевірено навички, гарне враження" });
+        var response = await client.PostAsync("/Candidates/AddNoteAjax", content);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"success\":true", json);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        var note = doc.RootElement.GetProperty("note").GetString();
+        Assert.NotNull(note);
+        Assert.Contains("Перевірено навички", note);
+    }
+
+    [Fact]
+    public async Task Candidates_QuickImportParse_Extracts_Structured_Data()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        var rawText = @"Дмитро Кравченко
+dmitry.kravchenko@gmail.com
++380671112233
+Senior .NET Developer, 7 років досвіду
+Стек: C#, .NET, PostgreSQL, Docker, React, AWS";
+
+        var content = JsonContent.Create(new { RawText = rawText });
+
+        var response = await client.PostAsync("/Candidates/QuickImportParse", content);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"success\":true", json);
+        Assert.Contains("dmitry.kravchenko@gmail.com", json);
+        Assert.Contains("C#", json);
+        Assert.Contains(".NET", json);
+        Assert.Contains("PostgreSQL", json);
+        Assert.Contains("\"experienceYears\":7", json);
     }
 
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)

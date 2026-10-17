@@ -1,0 +1,168 @@
+@{
+    ViewData["Title"] = "Швидкий імпорт кандидата";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="section-eyebrow">Автоматизація рекрутингу</span>
+        <h1 class="h2 fw-bold mb-1">Швидкий імпорт резюме (Djinni / LinkedIn)</h1>
+        <p class="text-muted mb-0">Вставте сирий текст або профіль кандидата. Система автоматично розпарсить ПІБ, контакти, стек та досвід.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+            Назад до списку
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Raw Text Input -->
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 bg-surface border">
+            <div class="card-header border-bottom py-3 d-flex align-items-center justify-content-between">
+                <span class="fw-semibold">1. Вставте сирий текст профілю</span>
+                <button type="button" class="btn btn-xs btn-outline-secondary" id="btnInsertSample">
+                    Вставити приклад (Djinni)
+                </button>
+            </div>
+            <div class="card-body d-flex flex-column p-3">
+                <p class="small text-muted mb-2">
+                    Скопіюйте сторінку кандидата з Djinni, LinkedIn чи резюме та вставте в поле нижче:
+                </p>
+                <textarea id="rawResumeText" class="form-control flex-grow-1" rows="14" placeholder="Вставте текст тут...
+Наприклад:
+Олександр Коваленко
+alex.kovalenko@example.com
++380501234567
+Middle .NET Developer, 3 роки досвіду.
+Навички: C#, ASP.NET Core, PostgreSQL, Docker, React, REST API, Git
+Англійська: B2
+Очікування: $2300" style="font-size:0.88rem; line-height:1.5; min-height: 280px;"></textarea>
+
+                <div class="mt-3 d-flex justify-content-end">
+                    <button type="button" class="btn btn-primary w-100 py-2" id="btnParseRawText">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/></svg>
+                        Розпізнати та заповнити ➔
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Structured Parsed Result & Save Form -->
+    <div class="col-12 col-lg-6">
+        <div class="card h-100 bg-surface border">
+            <div class="card-header border-bottom py-3">
+                <span class="fw-semibold">2. Перевірка та збереження в базу</span>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Create" method="post" id="importSaveForm">
+                    @Html.AntiForgeryToken()
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">ПІБ кандидата <span class="text-danger">*</span></label>
+                        <input type="text" name="FullName" id="inputFullName" class="form-control" required placeholder="Прізвище та Ім'я" />
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-bold">Електронна пошта <span class="text-danger">*</span></label>
+                            <input type="email" name="Email" id="inputEmail" class="form-control" required placeholder="email@example.com" />
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-bold">Номер телефону</label>
+                            <input type="text" name="Phone" id="inputPhone" class="form-control" placeholder="+380..." />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Досвід роботи (років)</label>
+                        <input type="number" name="ExperienceYears" id="inputExp" class="form-control" min="0" max="50" value="0" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Ключові навички <span class="text-danger">*</span></label>
+                        <input type="text" name="Skills" id="inputSkills" class="form-control" required placeholder="C#, .NET, PostgreSQL, Docker..." />
+                        <div class="form-text small">Розділяйте навички комами</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Короткий опис / Самарі</label>
+                        <textarea name="ResumeSummary" id="inputSummary" class="form-control" rows="3" placeholder="Автоматично витягнутий опис профілю..."></textarea>
+                    </div>
+
+                    <div class="pt-3 border-top d-flex justify-content-end">
+                        <button type="submit" class="btn btn-success px-4 py-2" id="btnSubmitCandidate">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><polyline points="20 6 9 17 4 12"/></svg>
+                            Зберегти в кадровий резерв
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const btnParse = document.getElementById("btnParseRawText");
+    const rawText = document.getElementById("rawResumeText");
+    const btnSample = document.getElementById("btnInsertSample");
+
+    if (btnSample && rawText) {
+        btnSample.addEventListener("click", function () {
+            rawText.value = `Максим Дорошенко
+doroshenko.max@gmail.com
++380671234589
+Senior .NET Engineer, 6 років досвіду в розробці.
+Стек технологій: C#, .NET 8, ASP.NET Core, PostgreSQL, Redis, Docker, Kubernetes, Microservices, REST API, Git, CI/CD, React
+Англійська: Upper-Intermediate (B2)
+Очікування по зарплаті: $3500`;
+        });
+    }
+
+    if (btnParse && rawText) {
+        btnParse.addEventListener("click", async function () {
+            const text = rawText.value.trim();
+            if (!text) {
+                alert("Будь ласка, вставте текст резюме перед розпізнаванням.");
+                return;
+            }
+
+            btnParse.disabled = true;
+            btnParse.innerHTML = "Розпізнавання...";
+
+            try {
+                const response = await fetch("/Candidates/QuickImportParse", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rawText: text })
+                });
+
+                if (!response.ok) {
+                    throw new Error("Помилка обробки");
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    if (data.fullName) document.getElementById("inputFullName").value = data.fullName;
+                    if (data.email) document.getElementById("inputEmail").value = data.email;
+                    if (data.phone) document.getElementById("inputPhone").value = data.phone;
+                    if (data.experienceYears) document.getElementById("inputExp").value = data.experienceYears;
+                    if (data.skills) document.getElementById("inputSkills").value = data.skills;
+                    if (data.summary) document.getElementById("inputSummary").value = data.summary;
+
+                    document.getElementById("inputFullName").focus();
+                }
+            } catch (err) {
+                alert("Не вдалося автоматично розпізнати: " + err.message);
+            } finally {
+                btnParse.disabled = false;
+                btnParse.innerHTML = 'Розпізнати та заповнити ➔';
+            }
+        });
+    }
+});
+</script>
+}

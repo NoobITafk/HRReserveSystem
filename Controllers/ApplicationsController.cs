@@ -212,6 +212,67 @@ public class ApplicationsController(ApplicationDbContext context) : Controller
         return await context.Applications.AnyAsync(item => item.Id == id);
     }
 
+    public async Task<IActionResult> Kanban(int? vacancyId)
+    {
+        IQueryable<Application> query = context.Applications
+            .AsNoTracking()
+            .Include(a => a.Candidate)
+            .Include(a => a.Vacancy)
+            .Include(a => a.Interviews);
+
+        if (vacancyId.HasValue && vacancyId.Value > 0)
+        {
+            query = query.Where(a => a.VacancyId == vacancyId.Value);
+        }
+
+        var applications = await query
+            .OrderByDescending(a => a.AppliedAt)
+            .ToListAsync();
+
+        var vacancies = await context.Vacancies
+            .AsNoTracking()
+            .Where(v => !v.IsArchived)
+            .OrderBy(v => v.Title)
+            .ToListAsync();
+
+        ViewData["VacancyId"] = vacancyId;
+        ViewData["Vacancies"] = new SelectList(vacancies, "Id", "Title", vacancyId);
+
+        return View(applications);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UpdateStatusAjax([FromBody] UpdateStatusAjaxRequest request)
+    {
+        if (request is null || !HrOptions.ApplicationStatuses.Contains(request.Status))
+        {
+            return BadRequest(new { success = false, message = "Некоректний статус етапу відбору." });
+        }
+
+        var application = await context.Applications
+            .Include(a => a.Candidate)
+            .FirstOrDefaultAsync(a => a.Id == request.Id);
+
+        if (application is null)
+        {
+            return NotFound(new { success = false, message = "Заявку не знайдено." });
+        }
+
+        application.Status = request.Status;
+        await context.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            id = application.Id,
+            status = application.Status,
+            statusLabel = HrOptions.ApplicationStatusLabel(application.Status),
+            statusBadge = HrOptions.ApplicationStatusBadge(application.Status),
+            candidateName = application.Candidate?.FullName,
+            message = $"Статус для {application.Candidate?.FullName} оновлено на «{HrOptions.ApplicationStatusLabel(application.Status)}»"
+        });
+    }
+
     private async Task<bool> ApplicationPairExists(int candidateId, int vacancyId, int? excludedApplicationId = null)
     {
         return await context.Applications.AnyAsync(item =>
@@ -220,3 +281,5 @@ public class ApplicationsController(ApplicationDbContext context) : Controller
             (!excludedApplicationId.HasValue || item.Id != excludedApplicationId.Value));
     }
 }
+
+public record UpdateStatusAjaxRequest(int Id, string Status);

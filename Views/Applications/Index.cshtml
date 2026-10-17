@@ -11,7 +11,22 @@
         <h1 class="h2 fw-bold mb-1">Заявки кандидатів <span class="badge-soft badge-soft-slate font-monospace ms-1">@Model.Count()</span></h1>
         <p class="text-muted mb-0">Відстеження етапів проходження кандидатів від первинного скринінгу до оффера.</p>
     </div>
-    <a class="btn btn-primary" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Створити заявку</a>
+    <div class="d-flex align-items-center gap-2">
+        <div class="btn-group" role="group" aria-label="Перемикач виду">
+            <a asp-action="Index" class="btn btn-sm btn-primary active">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                Таблиця
+            </a>
+            <a asp-action="Kanban" class="btn btn-sm btn-outline-secondary">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><rect width="6" height="14" x="3" y="5" rx="1"/><rect width="6" height="18" x="15" y="3" rx="1"/></svg>
+                Канбан
+            </a>
+        </div>
+        <a class="btn btn-sm btn-primary" asp-action="Create">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Створити заявку
+        </a>
+    </div>
 </div>
 
 <div class="pipeline-strip mb-4" role="navigation" aria-label="Фільтр за етапами пайплайну">

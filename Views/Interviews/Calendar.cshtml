@@ -55,8 +55,18 @@
                                 <div class="small text-muted">@HrOptions.InterviewTypeLabel(interview.InterviewType) · @(interview.Recruiter?.FullName ?? "Не призначено")</div>
                             </div>
                             <div class="d-flex flex-wrap gap-2">
-                                <a class="btn btn-sm btn-outline-secondary" asp-action="GoogleCalendar" asp-route-id="@interview.Id" target="_blank" rel="noopener">Google</a>
-                                <a class="btn btn-sm btn-outline-secondary" asp-action="ExportIcs" asp-route-id="@interview.Id">.ics</a>
+                                @if (!string.IsNullOrWhiteSpace(interview.Notes) && interview.Notes.Contains("http"))
+                                {
+                                    var linkMatch = System.Text.RegularExpressions.Regex.Match(interview.Notes, @"https?://[^\s]+");
+                                    if (linkMatch.Success)
+                                    {
+                                        <a class="btn btn-sm btn-outline-success" href="@linkMatch.Value" target="_blank" rel="noopener" title="Приєднатися до дзвінка">
+                                            🎥 Дзвінок
+                                        </a>
+                                    }
+                                }
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="GoogleCalendar" asp-route-id="@interview.Id" target="_blank" rel="noopener" title="Додати в Google Календар">Google</a>
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="ExportIcs" asp-route-id="@interview.Id" title="Завантажити .ics для Outlook/Apple">.ics</a>
                                 <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@interview.Id">Деталі</a>
                             </div>
                         </article>

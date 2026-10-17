@@ -13,16 +13,25 @@
         <p class="text-muted mb-0">Управління профілями фахівців, резюме, ключовими навичками та досвідом роботи.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-info" asp-action="QuickImport" title="Швидкий розбір тексту резюме з Djinni або LinkedIn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/></svg>
+            Швидкий імпорт
+        </a>
+        <a class="btn btn-outline-secondary" asp-controller="Applications" asp-action="Kanban" title="Перейти до канбан-дошки пайплайну">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><rect width="6" height="14" x="3" y="5" rx="1"/><rect width="6" height="18" x="15" y="3" rx="1"/></svg>
+            Канбан-дошка
+        </a>
         @if (showHidden)
         {
             <a class="btn btn-outline-secondary" asp-action="Index">Активні кандидати</a>
         }
         else
         {
-            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showHidden="true">Приховані кандидати</a>
+            <a class="btn btn-outline-secondary" asp-action="Index" asp-route-showHidden="true">Приховані</a>
         }
-        <a class="btn btn-outline-primary" asp-action="ExportCsv" asp-route-search="@ViewData["CurrentFilter"]" asp-route-minExperience="@ViewData["MinExperience"]" title="Завантажити поточний список кандидатів у форматі CSV">
-            Експорт у Excel/CSV
+        <a class="btn btn-outline-primary" asp-action="ExportCsv" asp-route-search="@ViewData["CurrentFilter"]" asp-route-minExperience="@ViewData["MinExperience"]" title="Завантажити поточний список кандидатів у форматі CSV для Excel">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Експорт CSV
         </a>
         <a class="btn btn-primary" asp-action="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg> Додати кандидата</a>
     </div>
@@ -113,6 +122,10 @@
                             }
                         </td>
                         <td class="text-end text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-info" data-quick-view="@item.Id" title="Швидкий огляд та нотатки">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                Огляд
+                            </button>
                             <a class="btn btn-sm btn-outline-primary" asp-action="Details" asp-route-id="@item.Id">Досьє</a>
                             @if (showHidden)
                             {
@@ -144,3 +157,6 @@
         </div>
     }
 </div>
+
+@await Html.PartialAsync("_QuickViewDrawer")
+@await Html.PartialAsync("_OutreachModal")

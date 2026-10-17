@@ -1,0 +1,157 @@
+@model IEnumerable<HRReserveSystem.Models.Application>
+
+@{
+    ViewData["Title"] = "Канбан-дошка кандидатів";
+    var currentVacancyId = ViewData["VacancyId"] as int?;
+    var vacancies = ViewData["Vacancies"] as SelectList;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <span class="section-eyebrow">Воронка рекрутингу</span>
+        <h1 class="h2 fw-bold mb-1">Канбан-дошка пайплайну</h1>
+        <p class="text-muted mb-0">Інтерактивне перетягування кандидатів між етапами відбору з миттєвим збереженням.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <div class="btn-group" role="group" aria-label="Перемикач виду">
+            <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                Таблиця
+            </a>
+            <a asp-action="Kanban" class="btn btn-sm btn-primary active">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><rect width="6" height="14" x="3" y="5" rx="1"/><rect width="6" height="18" x="15" y="3" rx="1"/></svg>
+                Канбан
+            </a>
+        </div>
+        <a class="btn btn-sm btn-primary" asp-action="Create">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            Створити заявку
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4 p-3 bg-surface border">
+    <form method="get" asp-action="Kanban" class="row g-2 align-items-center">
+        <div class="col-12 col-md-auto">
+            <span class="small fw-bold text-muted text-uppercase" style="font-size:0.75rem;">Фільтр вакансії:</span>
+        </div>
+        <div class="col-12 col-md-4">
+            <select name="vacancyId" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Вибір вакансії для фільтра">
+                <option value="">Усі вакансії (@Model.Count() заявок)</option>
+                @if (vacancies is not null)
+                {
+                    foreach (var v in vacancies)
+                    {
+                        if (currentVacancyId.HasValue && currentVacancyId.Value.ToString() == v.Value)
+                        {
+                            <option value="@v.Value" selected>@v.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@v.Value">@v.Text</option>
+                        }
+                    }
+                }
+            </select>
+        </div>
+        @if (currentVacancyId.HasValue && currentVacancyId.Value > 0)
+        {
+            <div class="col-12 col-md-auto">
+                <a asp-action="Kanban" class="btn btn-sm btn-outline-secondary">Скинути фільтр</a>
+            </div>
+        }
+    </form>
+</div>
+
+<!-- Kanban Board Container -->
+<div class="kanban-board-wrapper">
+    <div class="kanban-board">
+        @foreach (var status in HrOptions.ApplicationStatuses)
+        {
+            var itemsInStage = Model.Where(a => a.Status == status).ToList();
+            <div class="kanban-column" data-status="@status">
+                <div class="kanban-column-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="kanban-status-dot @(status == "Hired" ? "bg-emerald" : status == "Rejected" ? "bg-rose" : "bg-primary")"></span>
+                        <strong class="kanban-column-title">@HrOptions.ApplicationStatusLabel(status)</strong>
+                    </div>
+                    <span class="badge-soft badge-soft-slate kanban-count" data-count-status="@status">@itemsInStage.Count</span>
+                </div>
+
+                <div class="kanban-column-body" data-dropzone="true" data-status="@status">
+                    @foreach (var app in itemsInStage)
+                    {
+                        var candidate = app.Candidate;
+                        var vacancy = app.Vacancy;
+                        var initial = string.IsNullOrWhiteSpace(candidate?.FullName) ? "К" : candidate.FullName.Substring(0, 1).ToUpperInvariant();
+
+                        <div class="kanban-card" draggable="true" data-application-id="@app.Id" data-candidate-id="@app.CandidateId" data-status="@app.Status">
+                            <div class="kanban-card-top">
+                                <span class="profile-avatar profile-avatar-sm" aria-hidden="true">
+                                    @if (!string.IsNullOrWhiteSpace(candidate?.AvatarUrl))
+                                    {
+                                        <img src="@candidate.AvatarUrl" alt="@candidate.FullName" class="profile-avatar-img" />
+                                    }
+                                    else
+                                    {
+                                        @initial
+                                    }
+                                </span>
+                                <div class="min-w-0 flex-grow-1">
+                                    <div class="kanban-card-name text-truncate fw-semibold" title="@candidate?.FullName">@candidate?.FullName</div>
+                                    <div class="kanban-card-vacancy text-truncate small text-muted">@vacancy?.Title</div>
+                                </div>
+                            </div>
+
+                            <div class="kanban-card-meta">
+                                @if (candidate?.ExperienceYears > 0)
+                                {
+                                    <span class="badge-soft badge-soft-slate">@candidate.ExperienceYears р. досвіду</span>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(candidate?.Skills))
+                                {
+                                    var topSkills = candidate.Skills.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(2);
+                                    foreach (var skill in topSkills)
+                                    {
+                                        <span class="badge-soft badge-soft-emerald text-truncate" style="max-width: 90px;">@skill</span>
+                                    }
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(app.RecruiterComment))
+                            {
+                                <div class="kanban-card-note text-truncate small text-muted mt-2" title="@app.RecruiterComment">
+                                    💬 @app.RecruiterComment
+                                </div>
+                            }
+
+                            <div class="kanban-card-footer mt-2 pt-2 border-top d-flex align-items-center justify-content-between">
+                                <span class="kanban-card-date text-muted small" title="Подано @app.AppliedAt.ToLocalTime().ToString("g")">
+                                    @app.AppliedAt.ToLocalTime().ToString("dd.MM")
+                                </span>
+                                <div class="d-flex align-items-center gap-1">
+                                    <button type="button" class="btn btn-xs btn-icon btn-outline-secondary" data-quick-view="@app.CandidateId" title="Швидкий огляд кандидата" aria-label="Швидкий огляд">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </button>
+                                    <a class="btn btn-xs btn-icon btn-outline-secondary" asp-controller="Interviews" asp-action="Create" asp-route-applicationId="@app.Id" title="Призначити співбесіду" aria-label="Призначити співбесіду">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                                    </a>
+                                    <button type="button" class="btn btn-xs btn-icon btn-outline-secondary" data-outreach-btn data-candidate-name="@candidate?.FullName" data-candidate-email="@candidate?.Email" data-vacancy="@vacancy?.Title" title="Шаблони зв'язку" aria-label="Зв'язатися">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="kanban-empty @(itemsInStage.Count == 0 ? "" : "d-none")">
+                        <span>Немає заявок</span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@await Html.PartialAsync("_QuickViewDrawer")
+@await Html.PartialAsync("_OutreachModal")

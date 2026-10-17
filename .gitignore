@@ -19,3 +19,5 @@ wwwroot/uploads/
 !.env.example
 appsettings.Local.json
 appsettings.*.local.json
+*.tar.gz
+deploy.tar.gz

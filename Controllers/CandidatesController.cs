@@ -539,6 +539,207 @@ public class CandidatesController(
         }
     }
 
+    [HttpGet]
+    public async Task<IActionResult> QuickViewJson(int id)
+    {
+        var candidate = await context.Candidates
+            .AsNoTracking()
+            .Include(c => c.Applications)
+                .ThenInclude(a => a.Vacancy)
+            .Include(c => c.SoftSkillAssessments)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+
+        if (candidate is null)
+        {
+            return NotFound(new { success = false, message = "Кандидата не знайдено." });
+        }
+
+        var interviews = await context.Interviews
+            .AsNoTracking()
+            .Include(i => i.Application)
+                .ThenInclude(a => a!.Vacancy)
+            .Include(i => i.Recruiter)
+            .Where(i => i.Application != null && i.Application.CandidateId == candidate.Id)
+            .OrderByDescending(i => i.InterviewDate)
+            .Select(i => new
+            {
+                id = i.Id,
+                interviewType = i.InterviewType,
+                interviewTypeLabel = HrOptions.InterviewTypeLabel(i.InterviewType),
+                interviewDate = i.InterviewDate.ToLocalTime().ToString("dd.MM.yyyy HH:mm"),
+                notes = i.Notes,
+                result = i.Result,
+                resultBadge = HrOptions.InterviewResultBadge(i.Result),
+                recruiterName = i.Recruiter != null ? i.Recruiter.FullName : "Рекрутер"
+            })
+            .ToListAsync();
+
+        var latestSoftSkill = candidate.SoftSkillAssessments.LastOrDefault();
+        object? softSkillsData = null;
+        if (latestSoftSkill is not null)
+        {
+            var avg = (latestSoftSkill.Communication + latestSoftSkill.Teamwork + latestSoftSkill.Responsibility + latestSoftSkill.StressResistance + latestSoftSkill.Leadership) / 5.0;
+            softSkillsData = new
+            {
+                communication = latestSoftSkill.Communication,
+                teamwork = latestSoftSkill.Teamwork,
+                responsibility = latestSoftSkill.Responsibility,
+                stressResistance = latestSoftSkill.StressResistance,
+                leadership = latestSoftSkill.Leadership,
+                average = Math.Round(avg, 1)
+            };
+        }
+
+        return Json(new
+        {
+            success = true,
+            id = candidate.Id,
+            fullName = candidate.FullName,
+            email = candidate.Email,
+            phone = candidate.Phone ?? "Не вказано",
+            skills = candidate.Skills,
+            experienceYears = candidate.ExperienceYears,
+            avatarUrl = candidate.AvatarUrl,
+            resumeFilePath = candidate.ResumeFilePath,
+            resumeSummary = candidate.ResumeSummary,
+            hasResume = !string.IsNullOrWhiteSpace(candidate.ResumeFilePath),
+            applications = candidate.Applications.Select(a => new
+            {
+                id = a.Id,
+                vacancyId = a.VacancyId,
+                vacancyTitle = a.Vacancy?.Title ?? "Загальний резерв",
+                status = a.Status,
+                statusLabel = HrOptions.ApplicationStatusLabel(a.Status),
+                statusBadge = HrOptions.ApplicationStatusBadge(a.Status),
+                appliedAt = a.AppliedAt.ToLocalTime().ToString("dd.MM.yyyy"),
+                recruiterComment = a.RecruiterComment ?? ""
+            }),
+            interviews = interviews,
+            softSkills = softSkillsData
+        });
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> AddNoteAjax([FromBody] AddCandidateNoteRequest request)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Note))
+        {
+            return BadRequest(new { success = false, message = "Текст нотатки не може бути порожнім." });
+        }
+
+        var candidate = await context.Candidates
+            .Include(c => c.Applications)
+            .FirstOrDefaultAsync(c => c.Id == request.CandidateId && !c.IsDeleted);
+
+        if (candidate is null)
+        {
+            return NotFound(new { success = false, message = "Кандидата не знайдено." });
+        }
+
+        var timestamp = DateTime.Now.ToString("dd.MM HH:mm");
+        var author = User.Identity?.Name ?? "Рекрутер";
+        var newEntry = $"[{timestamp} {author}]: {request.Note.Trim()}";
+
+        var application = request.ApplicationId.HasValue
+            ? candidate.Applications.FirstOrDefault(a => a.Id == request.ApplicationId.Value)
+            : candidate.Applications.OrderByDescending(a => a.AppliedAt).FirstOrDefault();
+
+        if (application is not null)
+        {
+            application.RecruiterComment = string.IsNullOrWhiteSpace(application.RecruiterComment)
+                ? newEntry
+                : $"{newEntry}\n{application.RecruiterComment}";
+        }
+        else
+        {
+            candidate.ResumeSummary = string.IsNullOrWhiteSpace(candidate.ResumeSummary)
+                ? newEntry
+                : $"{newEntry}\n{candidate.ResumeSummary}";
+        }
+
+        await context.SaveChangesAsync();
+
+        return Json(new
+        {
+            success = true,
+            note = newEntry,
+            timestamp = timestamp,
+            author = author,
+            rawNote = request.Note.Trim()
+        });
+    }
+
+    [HttpGet]
+    public IActionResult QuickImport()
+    {
+        return View();
+    }
+
+    [HttpPost]
+    public IActionResult QuickImportParse([FromBody] QuickImportParseRequest request)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.RawText))
+        {
+            return BadRequest(new { success = false, message = "Вставте текст резюме або профілю." });
+        }
+
+        var text = request.RawText;
+
+        // 1. Extract Email
+        var emailMatch = System.Text.RegularExpressions.Regex.Match(text, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
+        var email = emailMatch.Success ? emailMatch.Value : "";
+
+        // 2. Extract Phone
+        var phoneMatch = System.Text.RegularExpressions.Regex.Match(text, @"(?:\+?380|0)\d{9}|(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}");
+        var phone = phoneMatch.Success ? phoneMatch.Value.Trim() : "";
+
+        // 3. Extract Experience Years
+        var expMatch = System.Text.RegularExpressions.Regex.Match(text, @"(\d+)\s*(?:роки|років|року|years|year|р\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var experienceYears = expMatch.Success && int.TryParse(expMatch.Groups[1].Value, out var exp) ? exp : 0;
+
+        // 4. Extract Known Tech Skills
+        var knownSkills = new[]
+        {
+            "C#", ".NET", "ASP.NET", "Entity Framework", "SQL", "PostgreSQL", "MSSQL", "MySQL",
+            "JavaScript", "TypeScript", "React", "Angular", "Vue", "Node.js", "Docker",
+            "Kubernetes", "AWS", "Azure", "Git", "REST API", "Microservices", "CI/CD",
+            "Redis", "HTML", "CSS", "Python", "Java", "Go", "Figma", "Jira", "Linux"
+        };
+
+        var matchedSkills = new List<string>();
+        foreach (var skill in knownSkills)
+        {
+            var pattern = $@"(?<!\w){System.Text.RegularExpressions.Regex.Escape(skill)}(?!\w)";
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            {
+                matchedSkills.Add(skill);
+            }
+        }
+
+        // 5. Extract Full Name (from first valid line)
+        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var fullName = "";
+        foreach (var line in lines.Take(5))
+        {
+            if (!line.Contains('@') && !line.Contains("http") && !line.Contains("+") && line.Length >= 4 && line.Length <= 60 && line.Split(' ').Length >= 2)
+            {
+                fullName = line;
+                break;
+            }
+        }
+
+        return Json(new
+        {
+            success = true,
+            fullName = fullName,
+            email = email,
+            phone = phone,
+            experienceYears = experienceYears,
+            skills = string.Join(", ", matchedSkills),
+            summary = text.Length > 500 ? text.Substring(0, 500) + "..." : text
+        });
+    }
+
     private void DeleteStoredAvatar(string? avatarPath)
     {
         if (string.IsNullOrWhiteSpace(avatarPath) || !avatarPath.StartsWith("/uploads/avatars/", StringComparison.OrdinalIgnoreCase))
@@ -554,3 +755,6 @@ public class CandidatesController(
         }
     }
 }
+
+public record AddCandidateNoteRequest(int CandidateId, int? ApplicationId, string Note);
+public record QuickImportParseRequest(string RawText);
