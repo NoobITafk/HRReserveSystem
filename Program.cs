@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using HRReserveSystem.Data;
 using HRReserveSystem.Hubs;
 using HRReserveSystem.Models;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpLogging;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -93,6 +95,33 @@ builder.Services.ConfigureApplicationCookie(options =>
         return Task.CompletedTask;
     };
 });
+builder.Services.AddSingleton<IEmailBackgroundQueue, EmailBackgroundQueue>();
+builder.Services.AddHostedService<EmailQueueHostedService>();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.HttpContext.Response.ContentType = "text/plain; charset=utf-8";
+        await context.HttpContext.Response.WriteAsync("Забагато запитів. Будь ласка, зачекайте перед повторною відправкою заявки.", token);
+    };
+    options.AddPolicy("CareersApplyPolicy", httpContext =>
+    {
+        var clientIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: clientIp,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(10),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    });
+});
+
 builder.Services.AddSignalR();
 builder.Services.AddControllersWithViews();
 
@@ -123,9 +152,19 @@ if (useHttpsRedirection)
 {
     app.UseHttpsRedirection();
 }
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/uploads/resumes", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    await next();
+});
 app.UseStaticFiles();
 
 app.UseRouting();
+app.UseRateLimiter();
 app.UseHttpLogging();
 
 app.UseAuthentication();

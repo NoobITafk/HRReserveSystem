@@ -24,6 +24,7 @@ services:
       - data-protection-keys:/app/DataProtectionKeys
       - email-outbox:/app/EmailOutbox
       - uploaded-resumes:/app/wwwroot/uploads
+      - app-storage:/app/App_Data/Storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,3 +50,4 @@ volumes:
   data-protection-keys:
   email-outbox:
   uploaded-resumes:
+  app-storage:

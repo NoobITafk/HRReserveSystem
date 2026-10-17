@@ -15,7 +15,7 @@ public class CandidatesController(
     ApplicationDbContext context,
     IWebHostEnvironment environment,
     ResumeIntelligenceService resumeIntelligence,
-    IEmailNotificationService emailService,
+    IEmailBackgroundQueue emailQueue,
     ILogger<CandidatesController> logger) : Controller
 {
     private const long MaxResumeFileSize = 5 * 1024 * 1024;
@@ -102,7 +102,7 @@ public class CandidatesController(
 
         if (!string.IsNullOrWhiteSpace(candidate.ResumeFilePath))
         {
-            var fullPath = Path.Combine(environment.WebRootPath, candidate.ResumeFilePath.TrimStart('/', '\\'));
+            var fullPath = GetPhysicalResumePath(candidate.ResumeFilePath);
             if (System.IO.File.Exists(fullPath))
             {
                 ViewBag.ParsedResume = resumeIntelligence.ParseResumeFile(fullPath);
@@ -129,7 +129,7 @@ public class CandidatesController(
         }
 
         var fileName = Path.GetFileName(candidate.ResumeFilePath);
-        var physicalPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
+        var physicalPath = GetPhysicalResumePath(fileName);
         if (!System.IO.File.Exists(physicalPath))
         {
             return NotFound();
@@ -168,7 +168,7 @@ public class CandidatesController(
         if (!string.IsNullOrWhiteSpace(uploadedResumePath))
         {
             candidate.ResumeFilePath = uploadedResumePath;
-            var fullPath = Path.Combine(environment.WebRootPath, uploadedResumePath.TrimStart('/', '\\'));
+            var fullPath = GetPhysicalResumePath(uploadedResumePath);
             var parsed = resumeIntelligence.ParseResumeFile(fullPath);
             if (parsed.Success && string.IsNullOrWhiteSpace(candidate.ResumeSummary) && !string.IsNullOrWhiteSpace(parsed.Summary))
             {
@@ -220,7 +220,7 @@ public class CandidatesController(
         DeleteStoredResume(oldResumePath);
         candidate.ResumeFilePath = uploadedResumePath;
 
-        var fullPath = Path.Combine(environment.WebRootPath, uploadedResumePath.TrimStart('/', '\\'));
+        var fullPath = GetPhysicalResumePath(uploadedResumePath);
         var parsed = resumeIntelligence.ParseResumeFile(fullPath);
         if (parsed.Success && !string.IsNullOrWhiteSpace(parsed.Summary))
         {
@@ -308,7 +308,7 @@ public class CandidatesController(
             {
                 DeleteStoredResume(oldResumePath);
                 existingCandidate.ResumeFilePath = uploadedResumePath;
-                var fullPath = Path.Combine(environment.WebRootPath, uploadedResumePath.TrimStart('/', '\\'));
+                var fullPath = GetPhysicalResumePath(uploadedResumePath);
                 var parsed = resumeIntelligence.ParseResumeFile(fullPath);
                 if (parsed.Success && !string.IsNullOrWhiteSpace(parsed.Summary))
                 {
@@ -476,6 +476,34 @@ public class CandidatesController(
         }
     }
 
+    private string GetResumeStorageDirectory()
+    {
+        return Path.Combine(environment.ContentRootPath, "App_Data", "Storage", "Resumes");
+    }
+
+    private string GetPhysicalResumePath(string? resumePath)
+    {
+        if (string.IsNullOrWhiteSpace(resumePath))
+        {
+            return string.Empty;
+        }
+
+        var fileName = Path.GetFileName(resumePath);
+        var privatePath = Path.Combine(GetResumeStorageDirectory(), fileName);
+        if (System.IO.File.Exists(privatePath))
+        {
+            return privatePath;
+        }
+
+        var legacyPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
+        if (System.IO.File.Exists(legacyPath))
+        {
+            return legacyPath;
+        }
+
+        return privatePath;
+    }
+
     private async Task<string?> SaveResumeFileAsync(IFormFile? resumeFile)
     {
         if (resumeFile is null || resumeFile.Length == 0)
@@ -484,11 +512,11 @@ public class CandidatesController(
         }
 
         var extension = Path.GetExtension(resumeFile.FileName).ToLowerInvariant();
-        var uploadsPath = Path.Combine(environment.WebRootPath, "uploads", "resumes");
-        Directory.CreateDirectory(uploadsPath);
+        var storagePath = GetResumeStorageDirectory();
+        Directory.CreateDirectory(storagePath);
 
         var fileName = $"{Guid.NewGuid():N}{extension}";
-        var physicalPath = Path.Combine(uploadsPath, fileName);
+        var physicalPath = Path.Combine(storagePath, fileName);
 
         await using var stream = System.IO.File.Create(physicalPath);
         await resumeFile.CopyToAsync(stream);
@@ -535,10 +563,16 @@ public class CandidatesController(
         }
 
         var fileName = Path.GetFileName(resumePath);
-        var physicalPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
-        if (System.IO.File.Exists(physicalPath))
+        var privatePath = Path.Combine(GetResumeStorageDirectory(), fileName);
+        if (System.IO.File.Exists(privatePath))
         {
-            System.IO.File.Delete(physicalPath);
+            System.IO.File.Delete(privatePath);
+        }
+
+        var legacyPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
+        if (System.IO.File.Exists(legacyPath))
+        {
+            System.IO.File.Delete(legacyPath);
         }
     }
 
@@ -661,14 +695,24 @@ public class CandidatesController(
             return BadRequest(new { success = false, message = "У кандидата відсутня електронна пошта." });
         }
 
-        try
+        var recipientEmail = candidate.Email;
+        var recipientName = candidate.FullName;
+        var emailSubject = request.Subject.Trim();
+        var emailBody = request.Body.Trim();
+
+        await emailQueue.QueueBackgroundWorkItemAsync(async (serviceProvider, cancellationToken) =>
         {
-            await emailService.SendCandidateMessageAsync(candidate.Email, candidate.FullName, request.Subject.Trim(), request.Body.Trim());
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Candidate email sending encountered warning");
-        }
+            var service = serviceProvider.GetRequiredService<IEmailNotificationService>();
+            var queueLogger = serviceProvider.GetRequiredService<ILogger<CandidatesController>>();
+            try
+            {
+                await service.SendCandidateMessageAsync(recipientEmail, recipientName, emailSubject, emailBody);
+            }
+            catch (Exception ex)
+            {
+                queueLogger.LogWarning(ex, "Background email sending encountered warning for {Email}", recipientEmail);
+            }
+        });
 
         var senderName = User.Identity?.Name ?? "Рекрутер";
         var communication = new CandidateCommunication
@@ -695,6 +739,7 @@ public class CandidatesController(
         });
 
         await context.SaveChangesAsync();
+        logger.LogInformation("Outreach email queued and recorded for candidate {CandidateId} ({Email}) by {Sender}", candidate.Id, candidate.Email, senderName);
 
         return Json(new
         {

@@ -22,4 +22,4 @@ appsettings.*.local.json
 *.tar.gz
 deploy.tar.gz
 .agents/
-
+App_Data/

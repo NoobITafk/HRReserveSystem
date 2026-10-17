@@ -1080,6 +1080,135 @@ Senior .NET Developer, 7 років досвіду
         Assert.Equal("Sent", comm.Status);
     }
 
+    [Fact]
+    public async Task Anonymous_User_Cannot_Access_Direct_Resume_Uploads()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/uploads/resumes/sensitive_candidate_cv.pdf");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Anonymous_User_Cannot_Download_Resume_Without_Auth()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var response = await client.GetAsync("/Candidates/DownloadResume/1");
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Contains("/Account/Login", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
+    public async Task Recruiter_Can_Download_Resume_When_Authenticated()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+        await LoginAsync(client, "recruiter", "recruiter123");
+
+        // Upload allowed resume first
+        var uploadResponse = await UploadResumeAsync(client, "/Candidates/UploadResume/1", "candidate_cv.pdf", "%PDF-1.4 test"u8.ToArray());
+        Assert.Equal(HttpStatusCode.Redirect, uploadResponse.StatusCode);
+
+        // Download through authorized endpoint
+        var downloadResponse = await client.GetAsync("/Candidates/DownloadResume/1");
+        Assert.Equal(HttpStatusCode.OK, downloadResponse.StatusCode);
+        Assert.Equal("application/pdf", downloadResponse.Content.Headers.ContentType?.MediaType);
+        var bytes = await downloadResponse.Content.ReadAsByteArrayAsync();
+        Assert.NotEmpty(bytes);
+    }
+
+    [Fact]
+    public async Task BackgroundEmailQueue_Processes_WorkItem_Asynchronously()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        var queue = factory.Services.GetRequiredService<IEmailBackgroundQueue>();
+        var tcs = new TaskCompletionSource<bool>();
+
+        await queue.QueueBackgroundWorkItemAsync((sp, ct) =>
+        {
+            tcs.TrySetResult(true);
+            return ValueTask.CompletedTask;
+        });
+
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(3000));
+        Assert.Same(tcs.Task, completed);
+        Assert.True(await tcs.Task);
+    }
+
+    [Fact]
+    public async Task Careers_Apply_Enforces_RateLimiting_On_Excessive_Requests()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client = CreateClient(factory);
+
+        var responses = new List<HttpResponseMessage>();
+        for (int i = 0; i < 6; i++)
+        {
+            var applyFields = new Dictionary<string, string>
+            {
+                ["vacancyId"] = "1",
+                ["fullName"] = $"Тестовий Кандидат {i}",
+                ["email"] = $"rate.limit.test.{i}@example.com",
+                ["phone"] = "+380501112233",
+                ["experienceYears"] = "3",
+                ["skills"] = "C#",
+                ["coverLetter"] = "Rate limit test"
+            };
+            responses.Add(await PostFormAsync(client, "/Careers/Details/1", "/Careers/Apply", applyFields));
+        }
+
+        // Within 10-minute window with permit limit 5, the 6th request is rejected with 429 Too Many Requests
+        var lastResponse = responses.Last();
+        Assert.Equal((HttpStatusCode)429, lastResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Careers_Apply_Handles_Concurrent_Submissions_Gracefully()
+    {
+        using var factory = new HrReserveWebApplicationFactory();
+        using var client1 = CreateClient(factory);
+        using var client2 = CreateClient(factory);
+
+        var email = $"race.candidate.{Guid.NewGuid():N}@example.com";
+        var applyFields1 = new Dictionary<string, string>
+        {
+            ["vacancyId"] = "1",
+            ["fullName"] = "Паралельний Кандидат",
+            ["email"] = email,
+            ["phone"] = "+380509998877",
+            ["experienceYears"] = "4",
+            ["skills"] = "C#, .NET, Docker",
+            ["coverLetter"] = "Потік 1"
+        };
+        var applyFields2 = new Dictionary<string, string>
+        {
+            ["vacancyId"] = "1",
+            ["fullName"] = "Паралельний Кандидат",
+            ["email"] = email,
+            ["phone"] = "+380509998877",
+            ["experienceYears"] = "4",
+            ["skills"] = "C#, .NET, Docker",
+            ["coverLetter"] = "Потік 2"
+        };
+
+        var token1 = await GetAntiforgeryTokenAsync(client1, "/Careers/Details/1");
+        var token2 = await GetAntiforgeryTokenAsync(client2, "/Careers/Details/1");
+        applyFields1["__RequestVerificationToken"] = token1;
+        applyFields2["__RequestVerificationToken"] = token2;
+
+        var task1 = client1.PostAsync("/Careers/Apply", new FormUrlEncodedContent(applyFields1));
+        var task2 = client2.PostAsync("/Careers/Apply", new FormUrlEncodedContent(applyFields2));
+
+        var results = await Task.WhenAll(task1, task2);
+
+        // Both concurrent requests must successfully redirect to /Careers/Success without 500 error
+        Assert.All(results, r => Assert.Equal(HttpStatusCode.Redirect, r.StatusCode));
+        Assert.All(results, r => Assert.Contains("/Careers/Success", r.Headers.Location?.OriginalString));
+    }
+
     private static async Task<InterviewPostData> GetNewInterviewPostDataAsync(HrReserveWebApplicationFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();

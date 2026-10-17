@@ -530,7 +530,7 @@
                 if (resumeCard && resumeDownloadBtn) {
                     if (data.hasResume) {
                         resumeCard.classList.remove("d-none");
-                        resumeDownloadBtn.href = data.resumeFilePath;
+                        resumeDownloadBtn.href = `/Candidates/DownloadResume/${data.id}`;
                         if (resumeSummary) resumeSummary.textContent = data.resumeSummary ? "Резюме розпізнано системою" : "Файл прикріплено";
                     } else {
                         resumeCard.classList.add("d-none");

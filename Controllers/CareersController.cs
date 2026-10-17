@@ -4,6 +4,7 @@ using HRReserveSystem.Models;
 using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -61,6 +62,7 @@ public class CareersController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("CareersApplyPolicy")]
     public async Task<IActionResult> Apply(
         int vacancyId,
         string fullName,
@@ -98,7 +100,20 @@ public class CareersController(
                 CreatedAt = DateTime.UtcNow
             };
             context.Candidates.Add(candidate);
-            await context.SaveChangesAsync();
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Concurrency race: candidate was inserted concurrently by another request
+                context.Entry(candidate).State = EntityState.Detached;
+                candidate = await context.Candidates.FirstOrDefaultAsync(c => c.Email.ToLower() == cleanEmail && !c.IsDeleted);
+                if (candidate is null)
+                {
+                    throw;
+                }
+            }
         }
         else
         {
@@ -108,14 +123,14 @@ public class CareersController(
             await context.SaveChangesAsync();
         }
 
-        // Handle Resume Upload
+        // Handle Resume Upload with private protected storage
         if (resumeFile is not null && resumeFile.Length > 0)
         {
             var ext = Path.GetExtension(resumeFile.FileName).ToLowerInvariant();
             if (AllowedResumeExtensions.Contains(ext) && resumeFile.Length <= MaxResumeFileSize)
             {
                 var uniqueName = $"{Guid.NewGuid():N}{ext}";
-                var targetDir = Path.Combine(environment.WebRootPath, "uploads", "resumes");
+                var targetDir = Path.Combine(environment.ContentRootPath, "App_Data", "Storage", "Resumes");
                 Directory.CreateDirectory(targetDir);
                 var fullPath = Path.Combine(targetDir, uniqueName);
 
@@ -168,7 +183,21 @@ public class CareersController(
                 CreatedAt = DateTime.UtcNow
             });
 
-            await context.SaveChangesAsync();
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Concurrency race: application was created concurrently
+                context.Entry(application).State = EntityState.Detached;
+                existingApp = await context.Applications.FirstOrDefaultAsync(a => a.CandidateId == candidate.Id && a.VacancyId == vacancyId);
+                if (existingApp is not null)
+                {
+                    return RedirectToAction(nameof(Success), new { id = existingApp.Id });
+                }
+                throw;
+            }
 
             // Broadcast via SignalR to Recruiters viewing the board
             try
