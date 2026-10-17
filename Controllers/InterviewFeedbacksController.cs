@@ -1,32 +1,19 @@
 using System.Security.Claims;
-using HRReserveSystem.Data;
 using HRReserveSystem.Models;
 using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter,Interviewer")]
-public class InterviewFeedbacksController(ApplicationDbContext context) : Controller
+public class InterviewFeedbacksController(IInterviewFeedbackService feedbackService) : Controller
 {
     public async Task<IActionResult> Index()
     {
-        var feedbacks = context.InterviewFeedbacks
-            .AsNoTracking()
-            .Include(feedback => feedback.Recruiter)
-            .Include(feedback => feedback.Interview)
-                .ThenInclude(interview => interview!.Application)
-                    .ThenInclude(application => application!.Candidate)
-            .Include(feedback => feedback.Interview)
-                .ThenInclude(interview => interview!.Application)
-                    .ThenInclude(application => application!.Vacancy);
-
-        return View(await feedbacks
-            .OrderByDescending(feedback => feedback.CreatedAt)
-            .ToListAsync());
+        var feedbacks = await feedbackService.GetFeedbacksAsync();
+        return View(feedbacks);
     }
 
     public async Task<IActionResult> Details(int? id)
@@ -36,17 +23,7 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
             return NotFound();
         }
 
-        var feedback = await context.InterviewFeedbacks
-            .AsNoTracking()
-            .Include(item => item.Recruiter)
-            .Include(item => item.Interview)
-                .ThenInclude(interview => interview!.Application)
-                    .ThenInclude(application => application!.Candidate)
-            .Include(item => item.Interview)
-                .ThenInclude(interview => interview!.Application)
-                    .ThenInclude(application => application!.Vacancy)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var feedback = await feedbackService.GetFeedbackDetailsAsync(id.Value);
         return feedback is null ? NotFound() : View(feedback);
     }
 
@@ -67,9 +44,12 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create([Bind("InterviewId,RecruiterId,Comment,Score,Recommendation")] InterviewFeedback feedback)
     {
-        if (User.IsInRole("Interviewer"))
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isInterviewer = User.IsInRole("Interviewer");
+
+        if (isInterviewer)
         {
-            feedback.RecruiterId = await GetCurrentRecruiterId();
+            feedback.RecruiterId = currentRecruiterId;
         }
 
         if (!ModelState.IsValid)
@@ -79,10 +59,7 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
             return View(feedback);
         }
 
-        feedback.CreatedAt = DateTime.UtcNow;
-        context.Add(feedback);
-        await context.SaveChangesAsync();
-
+        await feedbackService.CreateFeedbackAsync(feedback, currentRecruiterId, isInterviewer);
         return RedirectToAction(nameof(Index));
     }
 
@@ -94,7 +71,15 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
             return NotFound();
         }
 
-        var feedback = await context.InterviewFeedbacks.FindAsync(id);
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
+
+        var (feedback, forbidden) = await feedbackService.GetFeedbackForEditAsync(id.Value, currentRecruiterId, isAdmin);
+        if (forbidden)
+        {
+            return Forbid();
+        }
+
         if (feedback is null)
         {
             return NotFound();
@@ -110,15 +95,13 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, [Bind("Id,InterviewId,RecruiterId,Comment,Score,Recommendation,CreatedAt")] InterviewFeedback feedback)
     {
-        if (User.IsInRole("Interviewer"))
-        {
-            feedback.RecruiterId = await GetCurrentRecruiterId();
-        }
-
         if (id != feedback.Id)
         {
             return NotFound();
         }
+
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
 
         if (!ModelState.IsValid)
         {
@@ -127,19 +110,15 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
             return View(feedback);
         }
 
-        try
+        var (success, error, forbidden) = await feedbackService.UpdateFeedbackAsync(feedback, currentRecruiterId, isAdmin);
+        if (forbidden)
         {
-            context.Update(feedback);
-            await context.SaveChangesAsync();
+            return Forbid();
         }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await FeedbackExists(feedback.Id))
-            {
-                return NotFound();
-            }
 
-            throw;
+        if (!success)
+        {
+            return NotFound();
         }
 
         return RedirectToAction(nameof(Index));
@@ -153,18 +132,22 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
             return NotFound();
         }
 
-        var feedback = await context.InterviewFeedbacks
-            .AsNoTracking()
-            .Include(item => item.Recruiter)
-            .Include(item => item.Interview)
-                .ThenInclude(interview => interview!.Application)
-                    .ThenInclude(application => application!.Candidate)
-            .Include(item => item.Interview)
-                .ThenInclude(interview => interview!.Application)
-                    .ThenInclude(application => application!.Vacancy)
-            .FirstOrDefaultAsync(item => item.Id == id);
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
 
-        return feedback is null ? NotFound() : View(feedback);
+        var (feedback, forbidden) = await feedbackService.GetFeedbackForEditAsync(id.Value, currentRecruiterId, isAdmin);
+        if (forbidden)
+        {
+            return Forbid();
+        }
+
+        if (feedback is null)
+        {
+            return NotFound();
+        }
+
+        var details = await feedbackService.GetFeedbackDetailsAsync(id.Value);
+        return details is null ? NotFound() : View(details);
     }
 
     [Authorize(Roles = "Admin,Interviewer")]
@@ -172,12 +155,13 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var feedback = await context.InterviewFeedbacks.FindAsync(id);
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
 
-        if (feedback is not null)
+        var (success, error, forbidden) = await feedbackService.DeleteFeedbackAsync(id, currentRecruiterId, isAdmin);
+        if (forbidden)
         {
-            context.InterviewFeedbacks.Remove(feedback);
-            await context.SaveChangesAsync();
+            return Forbid();
         }
 
         return RedirectToAction(nameof(Index));
@@ -185,48 +169,20 @@ public class InterviewFeedbacksController(ApplicationDbContext context) : Contro
 
     private async Task PopulateInterviewsSelectList(int? selectedInterviewId = null)
     {
-        var interviews = await context.Interviews
-            .AsNoTracking()
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Candidate)
-            .Include(interview => interview.Application)
-                .ThenInclude(application => application!.Vacancy)
-            .Where(interview => interview.Application != null)
-            .Where(interview => interview.Application!.Candidate != null && !interview.Application.Candidate.IsDeleted)
-            .Where(interview => interview.Application!.Vacancy != null && !interview.Application.Vacancy.IsArchived)
-            .OrderByDescending(interview => interview.InterviewDate)
-            .ToListAsync();
-
-        var items = interviews.Select(interview => new
-        {
-            interview.Id,
-            Label = $"{interview.Application?.Candidate?.FullName} - {interview.Application?.Vacancy?.Title} ({interview.InterviewDate:g})"
-        });
-
-        ViewData["InterviewId"] = new SelectList(items, "Id", "Label", selectedInterviewId);
+        var items = await feedbackService.GetInterviewsDropdownAsync();
+        ViewData["InterviewId"] = new SelectList(items.Select(i => new { i.Id, i.Label }), "Id", "Label", selectedInterviewId);
     }
 
     private async Task PopulateRecruitersSelectList(int? selectedRecruiterId = null)
     {
-        var recruiters = await context.Recruiters
-            .AsNoTracking()
-            .OrderBy(recruiter => recruiter.FullName)
-            .ToListAsync();
-
+        var recruiters = await feedbackService.GetRecruitersDropdownAsync();
         ViewData["RecruiterId"] = new SelectList(recruiters, "Id", "FullName", selectedRecruiterId);
     }
 
     private async Task<int?> GetCurrentRecruiterId()
     {
-        var idValue = User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(idValue, out var id) && await context.Recruiters.AnyAsync(recruiter => recruiter.Id == id)
-            ? id
-            : null;
-    }
-
-    private async Task<bool> FeedbackExists(int id)
-    {
-        return await context.InterviewFeedbacks.AnyAsync(item => item.Id == id);
+        return await feedbackService.GetRecruiterIdForUserAsync(
+            User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim),
+            User.FindFirstValue(ClaimTypes.NameIdentifier));
     }
 }

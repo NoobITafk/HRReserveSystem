@@ -65,6 +65,7 @@ builder.Services.AddScoped<ICandidateService, CandidateService>();
 builder.Services.AddScoped<ICandidateApplicationService, CandidateApplicationService>();
 builder.Services.AddScoped<IVacancyService, VacancyService>();
 builder.Services.AddScoped<IInterviewService, InterviewService>();
+builder.Services.AddScoped<IInterviewFeedbackService, InterviewFeedbackService>();
 builder.Services.Configure<GoogleCalendarOptions>(builder.Configuration.GetSection("GoogleCalendar"));
 builder.Services.AddScoped<IGoogleCalendarSyncService, GoogleCalendarSyncService>();
 builder.Services.AddScoped<ResumeIntelligenceService>();

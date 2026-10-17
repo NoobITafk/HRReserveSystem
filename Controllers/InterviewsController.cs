@@ -1,20 +1,17 @@
 using System.Security.Claims;
 using System.Text;
-using HRReserveSystem.Data;
 using HRReserveSystem.Models;
 using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter,Interviewer")]
 public class InterviewsController(
     IInterviewService interviewService,
-    IGoogleCalendarSyncService googleCalendarSync,
-    ApplicationDbContext context) : Controller
+    IGoogleCalendarSyncService googleCalendarSync) : Controller
 {
     public async Task<IActionResult> Index(string? interviewType, string? result, int page = 1)
     {
@@ -193,40 +190,20 @@ public class InterviewsController(
 
     private async Task PopulateApplicationsSelectList(int? selectedApplicationId = null)
     {
-        var applications = await context.Applications
-            .AsNoTracking()
-            .Include(application => application.Candidate)
-            .Include(application => application.Vacancy)
-            .Where(application => application.Candidate != null && !application.Candidate.IsDeleted)
-            .Where(application => application.Vacancy != null && !application.Vacancy.IsArchived)
-            .OrderByDescending(application => application.AppliedAt)
-            .ToListAsync();
-
-        var items = applications.Select(application => new
-        {
-            application.Id,
-            Label = $"{application.Candidate?.FullName} - {application.Vacancy?.Title}"
-        });
-
-        ViewData["ApplicationId"] = new SelectList(items, "Id", "Label", selectedApplicationId);
+        var items = await interviewService.GetApplicationsDropdownAsync();
+        ViewData["ApplicationId"] = new SelectList(items.Select(i => new { i.Id, i.Label }), "Id", "Label", selectedApplicationId);
     }
 
     private async Task PopulateRecruitersSelectList(int? selectedRecruiterId = null)
     {
-        var recruiters = await context.Recruiters
-            .AsNoTracking()
-            .OrderBy(recruiter => recruiter.FullName)
-            .ToListAsync();
-
+        var recruiters = await interviewService.GetRecruitersDropdownAsync();
         ViewData["RecruiterId"] = new SelectList(recruiters, "Id", "FullName", selectedRecruiterId);
     }
 
     private async Task<int?> GetCurrentRecruiterId()
     {
-        var idValue = User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(idValue, out var id) && await context.Recruiters.AnyAsync(recruiter => recruiter.Id == id)
-            ? id
-            : null;
+        return await interviewService.GetRecruiterIdForUserAsync(
+            User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim),
+            User.FindFirstValue(ClaimTypes.NameIdentifier));
     }
 }

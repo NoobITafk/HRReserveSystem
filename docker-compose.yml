@@ -20,6 +20,11 @@ services:
       Email__FromEmail: "${Email__FromEmail:-no-reply@example.com}"
       Email__FromName: "${Email__FromName:-HR Reserve System}"
       Email__RedirectAllTo: "${Email__RedirectAllTo:-}"
+      Storage__Provider: "${STORAGE_PROVIDER:-MinIO}"
+      Storage__ServiceUrl: "${STORAGE_SERVICE_URL:-http://minio:9000}"
+      Storage__BucketName: "${STORAGE_BUCKET_NAME:-hrreserve-resumes}"
+      Storage__AccessKey: "${MINIO_ROOT_USER:-minioadmin}"
+      Storage__SecretKey: "${MINIO_ROOT_PASSWORD:-minioadmin123}"
     volumes:
       - data-protection-keys:/app/DataProtectionKeys
       - email-outbox:/app/EmailOutbox
@@ -45,9 +50,20 @@ services:
       retries: 5
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-minioadmin}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-minioadmin123}"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   data-protection-keys:
   email-outbox:
   uploaded-resumes:
   app-storage:
+  minio-data:

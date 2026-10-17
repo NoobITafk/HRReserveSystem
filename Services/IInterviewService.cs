@@ -12,4 +12,7 @@ public interface IInterviewService
     Task<bool> DeleteInterviewAsync(int id, CancellationToken ct = default);
     string GenerateIcsContent(Interview interview);
     string GetGoogleCalendarUrl(Interview interview);
+    Task<List<(int Id, string Label)>> GetApplicationsDropdownAsync(CancellationToken ct = default);
+    Task<List<Recruiter>> GetRecruitersDropdownAsync(CancellationToken ct = default);
+    Task<int?> GetRecruiterIdForUserAsync(string? recruiterIdClaim, string? userIdClaim, CancellationToken ct = default);
 }

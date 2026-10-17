@@ -187,4 +187,38 @@ public class InterviewService(
             + $"&details={Uri.EscapeDataString(description)}"
             + $"&location={Uri.EscapeDataString("HRReserveSystem")}";
     }
+
+    public async Task<List<(int Id, string Label)>> GetApplicationsDropdownAsync(CancellationToken ct = default)
+    {
+        var applications = await context.Applications
+            .AsNoTracking()
+            .Include(application => application.Candidate)
+            .Include(application => application.Vacancy)
+            .Where(application => application.Candidate != null && !application.Candidate.IsDeleted)
+            .Where(application => application.Vacancy != null && !application.Vacancy.IsArchived)
+            .OrderByDescending(application => application.AppliedAt)
+            .ToListAsync(ct);
+
+        return applications.Select(a => (a.Id, $"{a.Candidate?.FullName} - {a.Vacancy?.Title}")).ToList();
+    }
+
+    public async Task<List<Recruiter>> GetRecruitersDropdownAsync(CancellationToken ct = default)
+    {
+        return await context.Recruiters
+            .AsNoTracking()
+            .OrderBy(recruiter => recruiter.FullName)
+            .ToListAsync(ct);
+    }
+
+    public async Task<int?> GetRecruiterIdForUserAsync(string? recruiterIdClaim, string? userIdClaim, CancellationToken ct = default)
+    {
+        var candidateValue = recruiterIdClaim ?? userIdClaim;
+        if (!int.TryParse(candidateValue, out var id))
+        {
+            return null;
+        }
+
+        var exists = await context.Recruiters.AnyAsync(r => r.Id == id, ct);
+        return exists ? id : null;
+    }
 }
