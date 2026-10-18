@@ -1060,7 +1060,10 @@ Senior .NET Developer, 7 років досвіду
         Assert.Contains("\"count\":", json);
 
         // 2. Mark all as read
-        var markResponse = await client.PostAsync("/Notifications/MarkAllAsRead", null);
+        var token = await GetAntiforgeryTokenAsync(client, "/Candidates/Details/1");
+        using var markRequest = new HttpRequestMessage(HttpMethod.Post, "/Notifications/MarkAllAsRead");
+        markRequest.Headers.Add("RequestVerificationToken", token);
+        var markResponse = await client.SendAsync(markRequest);
         Assert.Equal(HttpStatusCode.OK, markResponse.StatusCode);
 
         // 3. Verify count is now 0

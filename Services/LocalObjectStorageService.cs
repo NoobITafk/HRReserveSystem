@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Options;
 
 namespace HRReserveSystem.Services;
@@ -7,6 +9,7 @@ public class LocalObjectStorageService(
     ILogger<LocalObjectStorageService> logger) : IObjectStorageService
 {
     private readonly string _baseStoragePath = Path.Combine(environment.ContentRootPath, "App_Data", "Storage", "Resumes");
+    private readonly byte[] _hmacKey = Encoding.UTF8.GetBytes(environment.ContentRootPath + "_LocalObjectStorageSecret_2026_SecureKey");
 
     public async Task<string> UploadFileAsync(Stream stream, string fileName, string contentType, CancellationToken ct = default)
     {
@@ -83,8 +86,37 @@ public class LocalObjectStorageService(
     public Task<string?> GeneratePresignedDownloadUrlAsync(string storagePath, TimeSpan expiry, CancellationToken ct = default)
     {
         var fileName = Path.GetFileName(storagePath);
-        var token = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{fileName}:{DateTimeOffset.UtcNow.Add(expiry).ToUnixTimeSeconds()}"));
-        return Task.FromResult<string?>($"/Candidates/DownloadResume?file={Uri.EscapeDataString(fileName)}&token={Uri.EscapeDataString(token)}");
+        var expiresUnix = DateTimeOffset.UtcNow.Add(expiry).ToUnixTimeSeconds();
+        var payload = $"{fileName}:{expiresUnix}";
+        using var hmac = new HMACSHA256(_hmacKey);
+        var signature = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+        var token = $"{payload}:{signature}";
+        var tokenBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(token));
+        return Task.FromResult<string?>($"/Candidates/DirectDownload?file={Uri.EscapeDataString(fileName)}&token={Uri.EscapeDataString(tokenBase64)}");
+    }
+
+    public bool ValidatePresignedToken(string fileName, string tokenBase64)
+    {
+        try
+        {
+            var raw = Encoding.UTF8.GetString(Convert.FromBase64String(tokenBase64));
+            var parts = raw.Split(':');
+            if (parts.Length != 3) return false;
+            var tokenFile = parts[0];
+            if (!string.Equals(tokenFile, fileName, StringComparison.OrdinalIgnoreCase)) return false;
+            if (!long.TryParse(parts[1], out var expiresUnix)) return false;
+            if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiresUnix) return false;
+            var payload = $"{tokenFile}:{expiresUnix}";
+            using var hmac = new HMACSHA256(_hmacKey);
+            var expectedSig = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(payload)));
+            return CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(expectedSig),
+                Encoding.UTF8.GetBytes(parts[2]));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public Task<(string UploadUrl, string FinalStoragePath)> GeneratePresignedUploadUrlAsync(string fileName, string contentType, TimeSpan expiry, CancellationToken ct = default)

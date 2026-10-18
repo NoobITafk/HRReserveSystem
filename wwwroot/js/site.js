@@ -204,7 +204,12 @@
                     dot.hidden = true;
                     dot.classList.add("is-hidden");
                 });
-                fetch("/Notifications/MarkAllAsRead", { method: "POST" }).catch(() => {});
+                fetch("/Notifications/MarkAllAsRead", {
+                    method: "POST",
+                    headers: {
+                        "RequestVerificationToken": getCsrfToken()
+                    }
+                }).catch(() => {});
             });
         });
     }

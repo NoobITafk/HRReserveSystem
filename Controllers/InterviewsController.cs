@@ -136,6 +136,13 @@ public class InterviewsController(
             return NotFound();
         }
 
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && interview.RecruiterId.HasValue && interview.RecruiterId != currentRecruiterId)
+        {
+            return Forbid();
+        }
+
         await PopulateApplicationsSelectList(interview.ApplicationId);
         await PopulateRecruitersSelectList(interview.RecruiterId);
         return View(interview);
@@ -149,6 +156,19 @@ public class InterviewsController(
         if (id != interview.Id)
         {
             return NotFound();
+        }
+
+        var existing = await interviewService.GetInterviewDetailsAsync(id);
+        if (existing is null)
+        {
+            return NotFound();
+        }
+
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && existing.RecruiterId.HasValue && existing.RecruiterId != currentRecruiterId)
+        {
+            return Forbid();
         }
 
         if (!ModelState.IsValid)
@@ -176,7 +196,19 @@ public class InterviewsController(
         }
 
         var interview = await interviewService.GetInterviewDetailsAsync(id.Value);
-        return interview is null ? NotFound() : View(interview);
+        if (interview is null)
+        {
+            return NotFound();
+        }
+
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && interview.RecruiterId.HasValue && interview.RecruiterId != currentRecruiterId)
+        {
+            return Forbid();
+        }
+
+        return View(interview);
     }
 
     [Authorize(Roles = "Admin,Recruiter")]
@@ -184,6 +216,19 @@ public class InterviewsController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
+        var existing = await interviewService.GetInterviewDetailsAsync(id);
+        if (existing is null)
+        {
+            return NotFound();
+        }
+
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        var isAdmin = User.IsInRole("Admin");
+        if (!isAdmin && existing.RecruiterId.HasValue && existing.RecruiterId != currentRecruiterId)
+        {
+            return Forbid();
+        }
+
         await interviewService.DeleteInterviewAsync(id);
         return RedirectToAction(nameof(Index));
     }

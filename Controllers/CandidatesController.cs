@@ -10,7 +10,8 @@ namespace HRReserveSystem.Controllers;
 public class CandidatesController(
     ICandidateService candidateService,
     ICandidateExportService exportService,
-    IAuditService auditService) : Controller
+    IAuditService auditService,
+    IObjectStorageService objectStorage) : Controller
 {
     private const long MaxResumeFileSize = 5 * 1024 * 1024;
     private const long MaxAvatarFileSize = 5 * 1024 * 1024;
@@ -76,6 +77,28 @@ public class CandidatesController(
         }
 
         await auditService.LogAsync("DownloadResume", "Candidate", candidate.Id.ToString(), $"Скачано резюме кандидата {candidate.FullName}");
+        return File(stream, contentType, downloadName);
+    }
+
+    [AllowAnonymous]
+    public async Task<IActionResult> DirectDownload(string file, string token)
+    {
+        if (string.IsNullOrWhiteSpace(file) || string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest();
+        }
+
+        if (objectStorage is LocalObjectStorageService localService && !localService.ValidatePresignedToken(file, token))
+        {
+            return Forbid();
+        }
+
+        var (stream, contentType, downloadName) = await candidateService.GetResumeFileStreamAsync($"/uploads/resumes/{file}", file);
+        if (stream is null)
+        {
+            return NotFound();
+        }
+
         return File(stream, contentType, downloadName);
     }
 

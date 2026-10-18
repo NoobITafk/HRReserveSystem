@@ -71,11 +71,21 @@ public class EmailQueueHostedService(
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var emailService = scope.ServiceProvider.GetRequiredService<IEmailNotificationService>();
 
+            var staleProcessingThreshold = DateTime.UtcNow.AddMinutes(-5);
+            var now = DateTime.UtcNow;
+
             var pendingMessages = await db.EmailOutboxMessages
-                .Where(m => m.Status == "Pending" || (m.Status == "Failed" && m.RetryCount < 3))
+                .Where(m => m.Status == "Pending" ||
+                            (m.Status == "Processing" && m.CreatedAt < staleProcessingThreshold) ||
+                            (m.Status == "Failed" && m.RetryCount < 3))
                 .OrderBy(m => m.CreatedAt)
                 .Take(20)
                 .ToListAsync(cancellationToken);
+
+            // Filter out failed messages that haven't passed exponential backoff interval
+            pendingMessages = pendingMessages
+                .Where(m => m.Status != "Failed" || m.ProcessedAt == null || m.ProcessedAt.Value.AddSeconds(Math.Pow(2, m.RetryCount) * 5) <= now)
+                .ToList();
 
             if (pendingMessages.Count == 0)
             {

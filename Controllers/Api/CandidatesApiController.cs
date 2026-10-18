@@ -1,44 +1,33 @@
-using HRReserveSystem.Data;
 using HRReserveSystem.Models;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers.Api;
 
 [ApiController]
 [Authorize(Roles = "Admin,Recruiter")]
 [Route("api/candidates")]
-public class CandidatesApiController(ApplicationDbContext context) : ControllerBase
+public class CandidatesApiController(ICandidateService candidateService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CandidateDto>>> GetAll()
     {
-        var candidates = await context.Candidates
-            .AsNoTracking()
-            .Where(candidate => !candidate.IsDeleted)
-            .OrderBy(candidate => candidate.FullName)
-            .Select(candidate => ToDto(candidate))
-            .ToListAsync();
-
-        return Ok(candidates);
+        var candidates = await candidateService.GetCandidatesForExportAsync(null, null, false);
+        return Ok(candidates.Select(ToDto));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CandidateDto>> GetById(int id)
     {
-        var candidate = await context.Candidates
-            .AsNoTracking()
-            .FirstOrDefaultAsync(item => item.Id == id && !item.IsDeleted);
-
+        var candidate = await candidateService.GetCandidateDetailsAsync(id);
         return candidate is null ? NotFound() : Ok(ToDto(candidate));
     }
 
     [HttpPost]
     public async Task<ActionResult<CandidateDto>> Create(CandidateCreateDto dto)
     {
-        var normalizedEmail = dto.Email.Trim().ToLower();
-        if (await context.Candidates.AnyAsync(candidate => candidate.Email.ToLower() == normalizedEmail))
+        if (await candidateService.EmailExistsAsync(dto.Email))
         {
             return Conflict(new ProblemDetails
             {
@@ -59,10 +48,8 @@ public class CandidatesApiController(ApplicationDbContext context) : ControllerB
             CreatedAt = DateTime.UtcNow
         };
 
-        context.Candidates.Add(candidate);
-        await context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = candidate.Id }, ToDto(candidate));
+        var created = await candidateService.CreateCandidateAsync(candidate, null, null);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToDto(created));
     }
 
     private static CandidateDto ToDto(Candidate candidate)

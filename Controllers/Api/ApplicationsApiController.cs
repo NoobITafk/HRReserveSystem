@@ -1,48 +1,38 @@
-using HRReserveSystem.Data;
 using HRReserveSystem.Models;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers.Api;
 
 [ApiController]
 [Authorize(Roles = "Admin,Recruiter")]
 [Route("api/applications")]
-public class ApplicationsApiController(ApplicationDbContext context) : ControllerBase
+public class ApplicationsApiController(
+    ICandidateApplicationService applicationService,
+    ICandidateService candidateService,
+    IVacancyService vacancyService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ApplicationDto>>> GetAll()
     {
-        var applications = await context.Applications
-            .AsNoTracking()
-            .Include(application => application.Candidate)
-            .Include(application => application.Vacancy)
-            .OrderByDescending(application => application.AppliedAt)
-            .Select(application => ToDto(application))
-            .ToListAsync();
-
-        return Ok(applications);
+        var (items, _, _) = await applicationService.GetApplicationsAsync(null, 1, 1000);
+        return Ok(items.Select(ToDto));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ApplicationDto>> GetById(int id)
     {
-        var application = await context.Applications
-            .AsNoTracking()
-            .Include(item => item.Candidate)
-            .Include(item => item.Vacancy)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var application = await applicationService.GetApplicationDetailsAsync(id);
         return application is null ? NotFound() : Ok(ToDto(application));
     }
 
     [HttpPost]
     public async Task<ActionResult<ApplicationDto>> Create(ApplicationCreateDto dto)
     {
-        var candidateExists = await context.Candidates.AnyAsync(candidate => candidate.Id == dto.CandidateId && !candidate.IsDeleted);
-        var vacancyExists = await context.Vacancies.AnyAsync(vacancy => vacancy.Id == dto.VacancyId && !vacancy.IsArchived);
-        if (!candidateExists || !vacancyExists)
+        var candidate = await candidateService.GetCandidateDetailsAsync(dto.CandidateId);
+        var vacancy = await vacancyService.GetVacancyDetailsAsync(dto.VacancyId);
+        if (candidate is null || vacancy is null || vacancy.IsArchived)
         {
             return BadRequest(new ProblemDetails
             {
@@ -52,7 +42,7 @@ public class ApplicationsApiController(ApplicationDbContext context) : Controlle
             });
         }
 
-        if (await context.Applications.AnyAsync(item => item.CandidateId == dto.CandidateId && item.VacancyId == dto.VacancyId))
+        if (await applicationService.ApplicationPairExistsAsync(dto.CandidateId, dto.VacancyId))
         {
             return Conflict(new ProblemDetails
             {
@@ -71,13 +61,10 @@ public class ApplicationsApiController(ApplicationDbContext context) : Controlle
             AppliedAt = DateTime.UtcNow
         };
 
-        context.Applications.Add(application);
-        await context.SaveChangesAsync();
+        var created = await applicationService.CreateApplicationAsync(application);
+        var loaded = await applicationService.GetApplicationDetailsAsync(created.Id);
 
-        await context.Entry(application).Reference(item => item.Candidate).LoadAsync();
-        await context.Entry(application).Reference(item => item.Vacancy).LoadAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = application.Id }, ToDto(application));
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToDto(loaded ?? created));
     }
 
     private static ApplicationDto ToDto(Application application)

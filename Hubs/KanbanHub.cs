@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace HRReserveSystem.Hubs;
 
-[Authorize]
+[Authorize(Roles = "Admin,Recruiter")]
 public class KanbanHub : Hub
 {
     public async Task JoinVacancyBoard(string vacancyId)

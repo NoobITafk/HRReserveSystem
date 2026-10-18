@@ -397,6 +397,7 @@ public static class SeedData
         {
             if (context.Database.IsSqlite())
             {
+                await context.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
                 var recruiterCols = await context.Database.SqlQueryRaw<string>("SELECT name FROM pragma_table_info('Recruiters');").ToListAsync();
                 if (!recruiterCols.Contains("AvatarUrl"))
                 {

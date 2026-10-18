@@ -15,6 +15,7 @@ public class NotificationsController(IAppNotificationService notificationService
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkAsRead(int id)
     {
         var isAdmin = User.IsInRole("Admin");
@@ -28,6 +29,7 @@ public class NotificationsController(IAppNotificationService notificationService
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkAllAsRead()
     {
         var markedCount = await notificationService.MarkAllAsReadAsync(User.Identity?.Name);

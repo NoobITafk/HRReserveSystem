@@ -1,37 +1,28 @@
-using HRReserveSystem.Data;
 using HRReserveSystem.Models;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers.Api;
 
 [ApiController]
 [Authorize(Roles = "Admin,Recruiter,Interviewer")]
 [Route("api/interviews")]
-public class InterviewsApiController(ApplicationDbContext context) : ControllerBase
+public class InterviewsApiController(
+    IInterviewService interviewService,
+    ICandidateApplicationService applicationService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<InterviewDto>>> GetAll()
     {
-        var interviews = await context.Interviews
-            .AsNoTracking()
-            .Include(interview => interview.Recruiter)
-            .OrderByDescending(interview => interview.InterviewDate)
-            .Select(interview => ToDto(interview))
-            .ToListAsync();
-
-        return Ok(interviews);
+        var (items, _, _) = await interviewService.GetInterviewsAsync(null, null, 1, 1000);
+        return Ok(items.Select(ToDto));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<InterviewDto>> GetById(int id)
     {
-        var interview = await context.Interviews
-            .AsNoTracking()
-            .Include(item => item.Recruiter)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var interview = await interviewService.GetInterviewDetailsAsync(id);
         return interview is null ? NotFound() : Ok(ToDto(interview));
     }
 
@@ -39,22 +30,13 @@ public class InterviewsApiController(ApplicationDbContext context) : ControllerB
     [Authorize(Roles = "Admin,Recruiter")]
     public async Task<ActionResult<InterviewDto>> Create(InterviewCreateDto dto)
     {
-        if (!await context.Applications.AnyAsync(application => application.Id == dto.ApplicationId))
+        var application = await applicationService.GetApplicationDetailsAsync(dto.ApplicationId);
+        if (application is null)
         {
             return BadRequest(new ProblemDetails
             {
                 Title = "Invalid application",
                 Detail = "Заявку для співбесіди не знайдено.",
-                Status = StatusCodes.Status400BadRequest
-            });
-        }
-
-        if (dto.RecruiterId.HasValue && !await context.Recruiters.AnyAsync(recruiter => recruiter.Id == dto.RecruiterId.Value))
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Invalid recruiter",
-                Detail = "Рекрутера для співбесіди не знайдено.",
                 Status = StatusCodes.Status400BadRequest
             });
         }
@@ -69,12 +51,10 @@ public class InterviewsApiController(ApplicationDbContext context) : ControllerB
             Notes = dto.Notes
         };
 
-        context.Interviews.Add(interview);
-        await context.SaveChangesAsync();
+        var created = await interviewService.ScheduleInterviewAsync(interview);
+        var loaded = await interviewService.GetInterviewDetailsAsync(created.Id);
 
-        await context.Entry(interview).Reference(item => item.Recruiter).LoadAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = interview.Id }, ToDto(interview));
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, ToDto(loaded ?? created));
     }
 
     private static InterviewDto ToDto(Interview interview)

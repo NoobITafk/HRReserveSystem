@@ -24,7 +24,19 @@ public class InterviewFeedbacksController(IInterviewFeedbackService feedbackServ
         }
 
         var feedback = await feedbackService.GetFeedbackDetailsAsync(id.Value);
-        return feedback is null ? NotFound() : View(feedback);
+        if (feedback is null)
+        {
+            return NotFound();
+        }
+
+        var isInterviewer = User.IsInRole("Interviewer");
+        var currentRecruiterId = await GetCurrentRecruiterId();
+        if (isInterviewer && feedback.RecruiterId != currentRecruiterId)
+        {
+            return Forbid();
+        }
+
+        return View(feedback);
     }
 
     public async Task<IActionResult> Create(int? interviewId)
@@ -47,7 +59,7 @@ public class InterviewFeedbacksController(IInterviewFeedbackService feedbackServ
         var currentRecruiterId = await GetCurrentRecruiterId();
         var isInterviewer = User.IsInRole("Interviewer");
 
-        if (isInterviewer)
+        if (!User.IsInRole("Admin"))
         {
             feedback.RecruiterId = currentRecruiterId;
         }
