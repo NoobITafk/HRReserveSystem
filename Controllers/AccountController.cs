@@ -1,17 +1,14 @@
-using System.Security.Claims;
-using HRReserveSystem.Data;
 using HRReserveSystem.Models;
 using HRReserveSystem.Services;
 using HRReserveSystem.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 public class AccountController(
-    ApplicationDbContext context,
+    IStaffAccountService staffAccountService,
     DemoUserService demoUserService,
     IdentityRecruiterSyncService identitySync,
     IPasswordHasher<Recruiter> passwordHasher,
@@ -108,15 +105,12 @@ public class AccountController(
             return View(model);
         }
 
-        var normalizedLogin = model.Login.Trim().ToLower();
-        var normalizedEmail = model.Email.Trim().ToLower();
-
-        if (await context.Recruiters.AnyAsync(r => r.Login.ToLower() == normalizedLogin))
+        if (await staffAccountService.IsLoginTakenAsync(model.Login))
         {
             ModelState.AddModelError(nameof(RegisterViewModel.Login), "Користувач із таким логіном вже зареєстрований.");
         }
 
-        if (await context.Recruiters.AnyAsync(r => r.Email.ToLower() == normalizedEmail))
+        if (await staffAccountService.IsEmailTakenAsync(model.Email))
         {
             ModelState.AddModelError(nameof(RegisterViewModel.Email), "Користувач із такою електронною поштою вже існує.");
         }
@@ -126,20 +120,7 @@ public class AccountController(
             return View(model);
         }
 
-        var selectedRole = RegisterViewModel.AllowedRegistrationRoles.Contains(model.Role) ? model.Role : "Recruiter";
-
-        var recruiter = new Recruiter
-        {
-            FullName = model.FullName.Trim(),
-            Email = model.Email.Trim(),
-            Login = model.Login.Trim(),
-            Role = selectedRole,
-            CreatedAt = DateTime.UtcNow
-        };
-        recruiter.PasswordHash = passwordHasher.HashPassword(recruiter, model.Password);
-
-        context.Recruiters.Add(recruiter);
-        await context.SaveChangesAsync();
+        var recruiter = await staffAccountService.RegisterStaffAsync(model);
 
         var syncErrors = await identitySync.SyncRecruiterAsync(recruiter);
         if (syncErrors.Count > 0)
@@ -173,13 +154,13 @@ public class AccountController(
     [Authorize]
     public async Task<IActionResult> Profile()
     {
-        var recruiter = await GetCurrentRecruiterAsync();
+        var recruiter = await staffAccountService.GetCurrentRecruiterAsync(User);
         if (recruiter is null)
         {
             return RedirectToAction("Index", "Home");
         }
 
-        return View(await BuildProfileViewModelAsync(recruiter));
+        return View(await staffAccountService.BuildProfileViewModelAsync(recruiter));
     }
 
     [Authorize]
@@ -187,7 +168,7 @@ public class AccountController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Profile(ProfileViewModel model)
     {
-        var recruiter = await GetCurrentRecruiterAsync();
+        var recruiter = await staffAccountService.GetCurrentRecruiterAsync(User);
         if (recruiter is null)
         {
             return RedirectToAction("Index", "Home");
@@ -195,7 +176,7 @@ public class AccountController(
 
         var normalizedEmail = (model.Email ?? string.Empty).Trim().ToLower();
         if (!string.IsNullOrWhiteSpace(normalizedEmail) &&
-            await context.Recruiters.AnyAsync(r => r.Id != recruiter.Id && r.Email.ToLower() == normalizedEmail))
+            await staffAccountService.IsEmailTakenAsync(normalizedEmail, recruiter.Id))
         {
             ModelState.AddModelError(nameof(ProfileViewModel.Email), "Ця електронна пошта вже використовується іншим користувачем.");
         }
@@ -224,21 +205,13 @@ public class AccountController(
 
         if (!ModelState.IsValid)
         {
-            var fullModel = await BuildProfileViewModelAsync(recruiter);
+            var fullModel = await staffAccountService.BuildProfileViewModelAsync(recruiter);
             fullModel.FullName = model.FullName ?? string.Empty;
             fullModel.Email = model.Email ?? string.Empty;
             return View(fullModel);
         }
 
-        recruiter.FullName = (model.FullName ?? string.Empty).Trim();
-        recruiter.Email = (model.Email ?? string.Empty).Trim();
-
-        if (wantsPasswordChange && !string.IsNullOrWhiteSpace(model.NewPassword))
-        {
-            recruiter.PasswordHash = passwordHasher.HashPassword(recruiter, model.NewPassword);
-        }
-
-        // Handle Avatar File Upload
+        string? avatarUrl = null;
         if (model.AvatarFile is not null && model.AvatarFile.Length > 0)
         {
             var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
@@ -253,12 +226,17 @@ public class AccountController(
                 {
                     await model.AvatarFile.CopyToAsync(stream);
                 }
-                var relativeUrl = $"/uploads/avatars/{fileName}";
-                recruiter.AvatarUrl = relativeUrl;
+                avatarUrl = $"/uploads/avatars/{fileName}";
             }
         }
 
-        await context.SaveChangesAsync();
+        await staffAccountService.UpdateProfileAsync(
+            recruiter,
+            model.FullName ?? string.Empty,
+            model.Email ?? string.Empty,
+            wantsPasswordChange ? model.NewPassword : null,
+            avatarUrl);
+
         await identitySync.SyncRecruiterAsync(recruiter);
 
         var identityUser = await userManager.FindByIdAsync(recruiter.Id.ToString());
@@ -295,76 +273,5 @@ public class AccountController(
     public IActionResult AccessDenied()
     {
         return View();
-    }
-
-    private async Task<Recruiter?> GetCurrentRecruiterAsync()
-    {
-        var recruiterIdClaim = User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (int.TryParse(recruiterIdClaim, out var recruiterId))
-        {
-            var byId = await context.Recruiters.FirstOrDefaultAsync(r => r.Id == recruiterId);
-            if (byId is not null)
-            {
-                return byId;
-            }
-        }
-
-        var userName = User.Identity?.Name;
-        if (!string.IsNullOrWhiteSpace(userName))
-        {
-            return await context.Recruiters.FirstOrDefaultAsync(r => r.Login == userName);
-        }
-
-        return null;
-    }
-
-    private async Task<ProfileViewModel> BuildProfileViewModelAsync(Recruiter recruiter)
-    {
-        var model = new ProfileViewModel
-        {
-            Id = recruiter.Id,
-            FullName = recruiter.FullName,
-            Email = recruiter.Email,
-            Login = recruiter.Login,
-            Role = recruiter.Role,
-            AvatarUrl = recruiter.AvatarUrl,
-            CreatedAt = recruiter.CreatedAt,
-            InterviewsCount = await context.Interviews.CountAsync(i => i.RecruiterId == recruiter.Id),
-            FeedbacksCount = await context.InterviewFeedbacks.CountAsync(f => f.RecruiterId == recruiter.Id),
-            CandidatesCount = await context.Candidates.CountAsync(c => !c.IsDeleted),
-            VacanciesCount = await context.Vacancies.CountAsync(v => v.Status == "Open")
-        };
-
-        var feedbacks = await context.InterviewFeedbacks
-            .Include(f => f.Interview)
-                .ThenInclude(i => i!.Application)
-                    .ThenInclude(a => a!.Candidate)
-            .Include(f => f.Interview)
-                .ThenInclude(i => i!.Application)
-                    .ThenInclude(a => a!.Vacancy)
-            .Where(f => f.RecruiterId == recruiter.Id)
-            .OrderByDescending(f => f.CreatedAt)
-            .ToListAsync();
-
-        if (feedbacks.Count > 0)
-        {
-            model.AverageFeedbackScore = Math.Round(feedbacks.Average(f => f.Score), 1);
-            model.MyRecentFeedbacks = feedbacks.Take(10).ToList();
-        }
-
-        model.MyUpcomingInterviews = await context.Interviews
-            .Include(i => i.Application)
-                .ThenInclude(a => a!.Candidate)
-            .Include(i => i.Application)
-                .ThenInclude(a => a!.Vacancy)
-            .Include(i => i.Feedbacks)
-            .Where(i => i.RecruiterId == recruiter.Id && i.InterviewDate >= DateTime.UtcNow.Date)
-            .OrderBy(i => i.InterviewDate)
-            .Take(10)
-            .ToListAsync();
-
-        return model;
     }
 }

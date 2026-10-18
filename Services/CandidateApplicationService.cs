@@ -340,4 +340,60 @@ public class CandidateApplicationService(
 
         return (vacancies, stages, applications);
     }
+
+    public async Task<Application?> GetApplicationForEditAsync(int id, CancellationToken ct = default)
+    {
+        return await context.Applications.FirstOrDefaultAsync(a => a.Id == id, ct);
+    }
+
+    public async Task<bool> ApplicationPairExistsAsync(int candidateId, int vacancyId, int? excludedApplicationId = null, CancellationToken ct = default)
+    {
+        return await context.Applications.AnyAsync(item =>
+            item.CandidateId == candidateId &&
+            item.VacancyId == vacancyId &&
+            (!excludedApplicationId.HasValue || item.Id != excludedApplicationId.Value), ct);
+    }
+
+    public async Task<(List<Candidate> Candidates, List<Vacancy> Vacancies)> GetApplicationSelectListsDataAsync(CancellationToken ct = default)
+    {
+        var candidates = await context.Candidates
+            .AsNoTracking()
+            .Where(candidate => !candidate.IsDeleted)
+            .OrderBy(candidate => candidate.FullName)
+            .ToListAsync(ct);
+
+        var vacancies = await context.Vacancies
+            .AsNoTracking()
+            .Where(vacancy => !vacancy.IsArchived)
+            .OrderBy(vacancy => vacancy.Title)
+            .ToListAsync(ct);
+
+        return (candidates, vacancies);
+    }
+
+    public async Task<(bool Success, string? CandidateName, string? Error)> UpdateApplicationStatusAsync(int id, string status, CancellationToken ct = default)
+    {
+        var application = await context.Applications
+            .Include(a => a.Candidate)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (application is null)
+        {
+            return (false, null, "Заявку не знайдено.");
+        }
+
+        application.Status = status;
+        await context.SaveChangesAsync(ct);
+
+        await auditService.LogAsync("UpdateApplicationStatus", "Application", id.ToString(), $"Змінено статус на {status}");
+        return (true, application.Candidate?.FullName, null);
+    }
+
+    public async Task<Application?> GetApplicationWithCandidateAsync(int id, CancellationToken ct = default)
+    {
+        return await context.Applications
+            .AsNoTracking()
+            .Include(a => a.Candidate)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+    }
 }

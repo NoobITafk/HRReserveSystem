@@ -1,54 +1,27 @@
-using HRReserveSystem.Data;
-using HRReserveSystem.Hubs;
-using HRReserveSystem.Models;
 using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 [AllowAnonymous]
 public class CareersController(
-    ApplicationDbContext context,
+    ICareersService careersService,
     ICandidateApplicationService applicationService) : Controller
 {
-    private const long MaxResumeFileSize = 5 * 1024 * 1024;
-    private static readonly string[] AllowedResumeExtensions = [".pdf", ".doc", ".docx"];
-
     [HttpGet]
     public async Task<IActionResult> Index(string? search)
     {
-        IQueryable<Vacancy> query = context.Vacancies
-            .AsNoTracking()
-            .Where(v => !v.IsArchived && v.Status == "Open");
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchLower = search.Trim().ToLower();
-            query = query.Where(v => v.Title.ToLower().Contains(searchLower)
-                || v.Description.ToLower().Contains(searchLower)
-                || v.Requirements.ToLower().Contains(searchLower));
-        }
-
-        var vacancies = await query
-            .OrderByDescending(v => v.CreatedAt)
-            .ToListAsync();
-
+        var vacancies = await careersService.GetOpenVacanciesAsync(search);
         ViewBag.Search = search;
-
         return View(vacancies);
     }
 
     [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
-        var vacancy = await context.Vacancies
-            .AsNoTracking()
-            .FirstOrDefaultAsync(v => v.Id == id && !v.IsArchived);
-
+        var vacancy = await careersService.GetVacancyDetailsAsync(id);
         if (vacancy is null)
         {
             return NotFound();
@@ -70,7 +43,7 @@ public class CareersController(
         string? coverLetter,
         IFormFile? resumeFile)
     {
-        var vacancy = await context.Vacancies.FirstOrDefaultAsync(v => v.Id == vacancyId && !v.IsArchived);
+        var vacancy = await careersService.GetVacancyDetailsAsync(vacancyId);
         if (vacancy is null)
         {
             return NotFound();
@@ -107,12 +80,7 @@ public class CareersController(
     [HttpGet]
     public async Task<IActionResult> Success(int id)
     {
-        var application = await context.Applications
-            .AsNoTracking()
-            .Include(a => a.Candidate)
-            .Include(a => a.Vacancy)
-            .FirstOrDefaultAsync(a => a.Id == id);
-
+        var application = await careersService.GetApplicationSuccessDetailsAsync(id);
         if (application is null)
         {
             return RedirectToAction(nameof(Index));

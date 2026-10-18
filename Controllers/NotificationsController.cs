@@ -1,79 +1,36 @@
-using HRReserveSystem.Data;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace HRReserveSystem.Controllers;
 
 [Authorize]
-public class NotificationsController(ApplicationDbContext context) : Controller
+public class NotificationsController(IAppNotificationService notificationService) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> GetUnread()
     {
-        var currentUserName = User.Identity?.Name;
-        var recruiter = !string.IsNullOrWhiteSpace(currentUserName)
-            ? await context.Recruiters.AsNoTracking().FirstOrDefaultAsync(r => r.Email == currentUserName || r.FullName == currentUserName)
-            : null;
-
-        var recruiterId = recruiter?.Id.ToString();
-
-        var query = context.AppNotifications
-            .AsNoTracking()
-            .Where(n => !n.IsRead && (n.RecruiterId == null || (recruiterId != null && n.RecruiterId == recruiterId)))
-            .OrderByDescending(n => n.CreatedAt);
-
-        var unreadCount = await query.CountAsync();
-        var items = await query.Take(10).Select(n => new
-        {
-            id = n.Id,
-            title = n.Title,
-            message = n.Message,
-            targetUrl = string.IsNullOrWhiteSpace(n.TargetUrl) ? "#" : n.TargetUrl,
-            timeAgo = n.CreatedAt.ToLocalTime().ToString("dd.MM HH:mm")
-        }).ToListAsync();
-
-        return Json(new
-        {
-            count = unreadCount,
-            items = items
-        });
+        var (count, items) = await notificationService.GetUnreadAsync(User.Identity?.Name);
+        return Json(new { count, items });
     }
 
     [HttpPost]
     public async Task<IActionResult> MarkAsRead(int id)
     {
-        var notification = await context.AppNotifications.FindAsync(id);
-        if (notification is not null)
+        var isAdmin = User.IsInRole("Admin");
+        var (success, forbidden) = await notificationService.MarkAsReadAsync(id, User.Identity?.Name, isAdmin);
+        if (forbidden)
         {
-            notification.IsRead = true;
-            await context.SaveChangesAsync();
+            return Forbid();
         }
 
-        return Json(new { success = true });
+        return Json(new { success });
     }
 
     [HttpPost]
     public async Task<IActionResult> MarkAllAsRead()
     {
-        var currentUserName = User.Identity?.Name;
-        var recruiter = !string.IsNullOrWhiteSpace(currentUserName)
-            ? await context.Recruiters.AsNoTracking().FirstOrDefaultAsync(r => r.Email == currentUserName || r.FullName == currentUserName)
-            : null;
-
-        var recruiterId = recruiter?.Id.ToString();
-
-        var unreadNotifications = await context.AppNotifications
-            .Where(n => !n.IsRead && (n.RecruiterId == null || (recruiterId != null && n.RecruiterId == recruiterId)))
-            .ToListAsync();
-
-        foreach (var n in unreadNotifications)
-        {
-            n.IsRead = true;
-        }
-
-        await context.SaveChangesAsync();
-
-        return Json(new { success = true, markedCount = unreadNotifications.Count });
+        var markedCount = await notificationService.MarkAllAsReadAsync(User.Identity?.Name);
+        return Json(new { success = true, markedCount });
     }
 }

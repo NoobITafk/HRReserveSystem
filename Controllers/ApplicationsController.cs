@@ -1,20 +1,13 @@
-using HRReserveSystem.Data;
-using HRReserveSystem.Hubs;
 using HRReserveSystem.Models;
+using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-
-using HRReserveSystem.Services;
 
 namespace HRReserveSystem.Controllers;
 
 [Authorize(Roles = "Admin,Recruiter")]
-public class ApplicationsController(
-    ApplicationDbContext context,
-    ICandidateApplicationService applicationService) : Controller
+public class ApplicationsController(ICandidateApplicationService applicationService) : Controller
 {
     public async Task<IActionResult> Index(string? status, int page = 1)
     {
@@ -56,17 +49,14 @@ public class ApplicationsController(
             return View(application);
         }
 
-        if (await ApplicationPairExists(application.CandidateId, application.VacancyId))
+        if (await applicationService.ApplicationPairExistsAsync(application.CandidateId, application.VacancyId))
         {
             ModelState.AddModelError(string.Empty, "Заявка для цього кандидата на цю вакансію вже існує.");
             await PopulateSelectLists(application.CandidateId, application.VacancyId);
             return View(application);
         }
 
-        application.AppliedAt = DateTime.UtcNow;
-        context.Add(application);
-        await context.SaveChangesAsync();
-
+        await applicationService.CreateApplicationAsync(application);
         return RedirectToAction(nameof(Index));
     }
 
@@ -77,7 +67,7 @@ public class ApplicationsController(
             return NotFound();
         }
 
-        var application = await context.Applications.FindAsync(id);
+        var application = await applicationService.GetApplicationForEditAsync(id.Value);
         if (application is null)
         {
             return NotFound();
@@ -102,26 +92,17 @@ public class ApplicationsController(
             return View(application);
         }
 
-        if (await ApplicationPairExists(application.CandidateId, application.VacancyId, application.Id))
+        if (await applicationService.ApplicationPairExistsAsync(application.CandidateId, application.VacancyId, application.Id))
         {
             ModelState.AddModelError(string.Empty, "Заявка для цього кандидата на цю вакансію вже існує.");
             await PopulateSelectLists(application.CandidateId, application.VacancyId);
             return View(application);
         }
 
-        try
+        var (success, error) = await applicationService.UpdateApplicationAsync(application);
+        if (!success)
         {
-            context.Update(application);
-            await context.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            if (!await ApplicationExists(application.Id))
-            {
-                return NotFound();
-            }
-
-            throw;
+            return NotFound();
         }
 
         return RedirectToAction(nameof(Index));
@@ -134,12 +115,7 @@ public class ApplicationsController(
             return NotFound();
         }
 
-        var application = await context.Applications
-            .AsNoTracking()
-            .Include(item => item.Candidate)
-            .Include(item => item.Vacancy)
-            .FirstOrDefaultAsync(item => item.Id == id);
-
+        var application = await applicationService.GetApplicationDetailsAsync(id.Value);
         return application is null ? NotFound() : View(application);
     }
 
@@ -147,14 +123,7 @@ public class ApplicationsController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var application = await context.Applications.FindAsync(id);
-
-        if (application is not null)
-        {
-            context.Applications.Remove(application);
-            await context.SaveChangesAsync();
-        }
-
+        await applicationService.DeleteApplicationAsync(id);
         return RedirectToAction(nameof(Index));
     }
 
@@ -168,41 +137,21 @@ public class ApplicationsController(
             return RedirectToAction(nameof(Index), new { status = returnStatusFilter });
         }
 
-        var application = await context.Applications
-            .Include(a => a.Candidate)
-            .FirstOrDefaultAsync(a => a.Id == id);
-        if (application is null)
+        var (success, candidateName, error) = await applicationService.UpdateApplicationStatusAsync(id, status);
+        if (!success)
         {
             return NotFound();
         }
 
-        application.Status = status;
-        await context.SaveChangesAsync();
-
-        TempData["SuccessMessage"] = $"Статус заявки для «{application.Candidate?.FullName}» змінено на «{HrOptions.ApplicationStatusLabel(status)}».";
+        TempData["SuccessMessage"] = $"Статус заявки для «{candidateName}» змінено на «{HrOptions.ApplicationStatusLabel(status)}».";
         return RedirectToAction(nameof(Index), new { status = returnStatusFilter });
     }
 
     private async Task PopulateSelectLists(int? candidateId = null, int? vacancyId = null)
     {
-        var candidates = await context.Candidates
-            .AsNoTracking()
-            .Where(candidate => !candidate.IsDeleted)
-            .OrderBy(candidate => candidate.FullName)
-            .ToListAsync();
-        var vacancies = await context.Vacancies
-            .AsNoTracking()
-            .Where(vacancy => !vacancy.IsArchived)
-            .OrderBy(vacancy => vacancy.Title)
-            .ToListAsync();
-
+        var (candidates, vacancies) = await applicationService.GetApplicationSelectListsDataAsync();
         ViewData["CandidateId"] = new SelectList(candidates, "Id", "FullName", candidateId);
         ViewData["VacancyId"] = new SelectList(vacancies, "Id", "Title", vacancyId);
-    }
-
-    private async Task<bool> ApplicationExists(int id)
-    {
-        return await context.Applications.AnyAsync(item => item.Id == id);
     }
 
     public async Task<IActionResult> Kanban(int? vacancyId)
@@ -231,10 +180,7 @@ public class ApplicationsController(
             return NotFound(new { success = false, message = error ?? "Заявку не знайдено." });
         }
 
-        var application = await context.Applications
-            .AsNoTracking()
-            .Include(a => a.Candidate)
-            .FirstOrDefaultAsync(a => a.Id == request.Id);
+        var application = await applicationService.GetApplicationWithCandidateAsync(request.Id);
 
         return Json(new
         {
@@ -247,14 +193,6 @@ public class ApplicationsController(
             candidateName = application?.Candidate?.FullName,
             message = $"Статус для {application?.Candidate?.FullName} оновлено на «{HrOptions.ApplicationStatusLabel(request.Status)}»"
         });
-    }
-
-    private async Task<bool> ApplicationPairExists(int candidateId, int vacancyId, int? excludedApplicationId = null)
-    {
-        return await context.Applications.AnyAsync(item =>
-            item.CandidateId == candidateId &&
-            item.VacancyId == vacancyId &&
-            (!excludedApplicationId.HasValue || item.Id != excludedApplicationId.Value));
     }
 }
 

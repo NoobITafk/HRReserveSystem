@@ -424,6 +424,7 @@ public static class SeedData
                 {
                     await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN \"CreatedAt\" TEXT;");
                 }
+                await context.Database.ExecuteSqlRawAsync("UPDATE \"SoftSkillAssessments\" SET \"CreatedAt\" = datetime('now') WHERE \"CreatedAt\" IS NULL OR \"CreatedAt\" = '';");
 
                 await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS ""PipelineStages"" (
@@ -498,7 +499,8 @@ public static class SeedData
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Candidates\" ADD COLUMN IF NOT EXISTS \"AvatarUrl\" text;");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"Applications\" ADD COLUMN IF NOT EXISTS \"StageId\" integer;");
                 await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN IF NOT EXISTS \"RecruiterId\" integer;");
-                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp;");
+                await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"SoftSkillAssessments\" ADD COLUMN IF NOT EXISTS \"CreatedAt\" timestamp DEFAULT NOW();");
+                await context.Database.ExecuteSqlRawAsync("UPDATE \"SoftSkillAssessments\" SET \"CreatedAt\" = NOW() WHERE \"CreatedAt\" IS NULL;");
 
                 await context.Database.ExecuteSqlRawAsync(@"
                     CREATE TABLE IF NOT EXISTS ""PipelineStages"" (
