@@ -18,14 +18,13 @@ public class AccountController(
     IWebHostEnvironment environment) : Controller
 {
     [AllowAnonymous]
-    public async Task<IActionResult> Login(string? returnUrl = null)
+    public IActionResult Login(string? returnUrl = null)
     {
         if (User.Identity?.IsAuthenticated == true)
         {
             return RedirectToAction("Index", "Home");
         }
 
-        ViewData["DemoUsers"] = await demoUserService.GetDemoUsersAsync();
         return View(new LoginViewModel { ReturnUrl = returnUrl });
     }
 
@@ -35,8 +34,6 @@ public class AccountController(
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("LoginPolicy")]
     public async Task<IActionResult> Login(LoginViewModel model)
     {
-        ViewData["DemoUsers"] = await demoUserService.GetDemoUsersAsync();
-
         if (!ModelState.IsValid)
         {
             return View(model);
