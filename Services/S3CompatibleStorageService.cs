@@ -179,4 +179,8 @@ public class S3CompatibleStorageService : IObjectStorageService
         var finalStoragePath = $"/uploads/resumes/{safeKey}";
         return Task.FromResult((uploadUrl, finalStoragePath));
     }
+
+    public string GeneratePresignedToken(string payload, TimeSpan expiry) => _fallback.GeneratePresignedToken(payload, expiry);
+
+    public bool ValidatePresignedToken(string payload, string tokenBase64) => _fallback.ValidatePresignedToken(payload, tokenBase64);
 }

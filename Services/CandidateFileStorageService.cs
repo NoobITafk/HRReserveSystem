@@ -1,12 +1,33 @@
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace HRReserveSystem.Services;
 
-public class CandidateFileStorageService(
-    IWebHostEnvironment environment,
-    IObjectStorageService objectStorage) : ICandidateFileStorageService
+public class CandidateFileStorageService : ICandidateFileStorageService
 {
+    private readonly IWebHostEnvironment _environment;
+    private readonly IObjectStorageService _objectStorage;
+    private readonly ILogger<CandidateFileStorageService> _logger;
+
+    public CandidateFileStorageService(
+        IWebHostEnvironment environment,
+        IObjectStorageService objectStorage,
+        ILogger<CandidateFileStorageService> logger)
+    {
+        _environment = environment;
+        _objectStorage = objectStorage;
+        _logger = logger;
+    }
+
+    public CandidateFileStorageService(
+        IWebHostEnvironment environment,
+        IObjectStorageService objectStorage)
+        : this(environment, objectStorage, NullLogger<CandidateFileStorageService>.Instance)
+    {
+    }
+
     public string GetResumeStorageDirectory()
     {
-        return Path.Combine(environment.ContentRootPath, "App_Data", "Storage", "Resumes");
+        return Path.Combine(_environment.ContentRootPath, "App_Data", "Storage", "Resumes");
     }
 
     public string GetPhysicalResumePath(string? resumePath)
@@ -18,17 +39,6 @@ public class CandidateFileStorageService(
 
         var fileName = Path.GetFileName(resumePath);
         var privatePath = Path.Combine(GetResumeStorageDirectory(), fileName);
-        if (System.IO.File.Exists(privatePath))
-        {
-            return privatePath;
-        }
-
-        var legacyPath = Path.Combine(environment.WebRootPath, "uploads", "resumes", fileName);
-        if (System.IO.File.Exists(legacyPath))
-        {
-            return legacyPath;
-        }
-
         return privatePath;
     }
 
@@ -46,7 +56,7 @@ public class CandidateFileStorageService(
         }
 
         await using var stream = resumeFile.OpenReadStream();
-        return await objectStorage.UploadFileAsync(stream, resumeFile.FileName, resumeFile.ContentType);
+        return await _objectStorage.UploadFileAsync(stream, resumeFile.FileName, resumeFile.ContentType);
     }
 
     public async Task<string?> SaveAvatarFileAsync(IFormFile? avatarFile)
@@ -62,41 +72,38 @@ public class CandidateFileStorageService(
             throw new InvalidOperationException("Файл зображення не відповідає формату або пошкоджений.");
         }
 
-        var uploadsPath = Path.Combine(environment.WebRootPath, "uploads", "avatars");
-        Directory.CreateDirectory(uploadsPath);
-
-        var fileName = $"candidate_{Guid.NewGuid():N}{extension}";
-        var physicalPath = Path.Combine(uploadsPath, fileName);
-
-        await using var stream = System.IO.File.Create(physicalPath);
-        await avatarFile.CopyToAsync(stream);
-
-        return $"/uploads/avatars/{fileName}";
+        await using var stream = avatarFile.OpenReadStream();
+        return await _objectStorage.UploadFileAsync(stream, avatarFile.FileName, avatarFile.ContentType);
     }
 
     public void DeleteStoredResume(string? resumePath)
+    {
+        _ = DeleteStoredResumeAsync(resumePath);
+    }
+
+    public async Task DeleteStoredResumeAsync(string? resumePath)
     {
         if (string.IsNullOrWhiteSpace(resumePath) || !resumePath.StartsWith("/uploads/resumes/", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        _ = objectStorage.DeleteFileAsync(resumePath);
+        await _objectStorage.DeleteFileAsync(resumePath);
     }
 
     public void DeleteStoredAvatar(string? avatarPath)
+    {
+        _ = DeleteStoredAvatarAsync(avatarPath);
+    }
+
+    public async Task DeleteStoredAvatarAsync(string? avatarPath)
     {
         if (string.IsNullOrWhiteSpace(avatarPath) || !avatarPath.StartsWith("/uploads/avatars/", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
 
-        var fileName = Path.GetFileName(avatarPath);
-        var physicalPath = Path.Combine(environment.WebRootPath, "uploads", "avatars", fileName);
-        if (System.IO.File.Exists(physicalPath))
-        {
-            System.IO.File.Delete(physicalPath);
-        }
+        await _objectStorage.DeleteFileAsync(avatarPath);
     }
 
     public string GetResumeContentType(string fileName)
@@ -110,7 +117,7 @@ public class CandidateFileStorageService(
         };
     }
 
-    private static bool IsValidResumeSignature(IFormFile file, string ext)
+    private bool IsValidResumeSignature(IFormFile file, string ext)
     {
         try
         {
@@ -132,13 +139,14 @@ public class CandidateFileStorageService(
                 _ => true
             };
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "Failed to validate resume signature for extension {Extension}", ext);
             return false;
         }
     }
 
-    private static bool IsValidImageSignature(IFormFile file, string ext)
+    private bool IsValidImageSignature(IFormFile file, string ext)
     {
         try
         {
@@ -158,8 +166,9 @@ public class CandidateFileStorageService(
                 _ => true
             };
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogDebug(ex, "Failed to validate image signature for extension {Extension}", ext);
             return false;
         }
     }

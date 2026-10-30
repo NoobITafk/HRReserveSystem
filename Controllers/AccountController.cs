@@ -14,8 +14,7 @@ public class AccountController(
     IPasswordHasher<Recruiter> passwordHasher,
     SignInManager<IdentityUser> signInManager,
     UserManager<IdentityUser> userManager,
-    IAuditService auditService,
-    IWebHostEnvironment environment) : Controller
+    IAuditService auditService) : Controller
 {
     [AllowAnonymous]
     public IActionResult Login(string? returnUrl = null)
@@ -117,11 +116,13 @@ public class AccountController(
             return View(model);
         }
 
+        await using var transaction = await staffAccountService.BeginTransactionAsync();
         var recruiter = await staffAccountService.RegisterStaffAsync(model);
 
         var syncErrors = await identitySync.SyncRecruiterAsync(recruiter);
         if (syncErrors.Count > 0)
         {
+            await transaction.RollbackAsync();
             foreach (var error in syncErrors)
             {
                 ModelState.AddModelError(string.Empty, error);
@@ -129,6 +130,8 @@ public class AccountController(
 
             return View(model);
         }
+
+        await transaction.CommitAsync();
 
         var identityUser = await userManager.FindByIdAsync(recruiter.Id.ToString());
         if (identityUser is not null)
@@ -211,20 +214,7 @@ public class AccountController(
         string? avatarUrl = null;
         if (model.AvatarFile is not null && model.AvatarFile.Length > 0)
         {
-            var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-            var ext = Path.GetExtension(model.AvatarFile.FileName).ToLowerInvariant();
-            if (allowedExts.Contains(ext) && model.AvatarFile.Length <= 5 * 1024 * 1024)
-            {
-                var avatarsDir = Path.Combine(environment.WebRootPath, "uploads", "avatars");
-                Directory.CreateDirectory(avatarsDir);
-                var fileName = $"avatar_{recruiter.Id}_{Guid.NewGuid():N}{ext}";
-                var savePath = Path.Combine(avatarsDir, fileName);
-                using (var stream = new FileStream(savePath, FileMode.Create))
-                {
-                    await model.AvatarFile.CopyToAsync(stream);
-                }
-                avatarUrl = $"/uploads/avatars/{fileName}";
-            }
+            avatarUrl = await staffAccountService.SaveStaffAvatarAsync(model.AvatarFile, recruiter.Id);
         }
 
         await staffAccountService.UpdateProfileAsync(

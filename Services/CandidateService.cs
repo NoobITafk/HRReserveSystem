@@ -495,4 +495,9 @@ public class CandidateService(
         var fullPath = fileStorage.GetPhysicalResumePath(resumePath);
         return File.Exists(fullPath) ? resumeIntelligence.ParseResumeFile(fullPath) : null;
     }
+
+    public QuickImportParsedResult ParseRawResumeText(string rawText)
+    {
+        return resumeIntelligence.ParseRawResumeText(rawText);
+    }
 }

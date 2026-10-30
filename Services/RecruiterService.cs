@@ -10,8 +10,7 @@ public class RecruiterService(
     ApplicationDbContext context,
     IdentityRecruiterSyncService identitySync,
     IPasswordHasher<Recruiter> passwordHasher,
-    IAuditService auditService,
-    ILogger<RecruiterService> logger) : IRecruiterService
+    IAuditService auditService) : IRecruiterService
 {
     public async Task<List<Recruiter>> GetRecruitersAsync(CancellationToken ct = default)
     {

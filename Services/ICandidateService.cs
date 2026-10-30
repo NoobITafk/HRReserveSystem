@@ -20,4 +20,5 @@ public interface ICandidateService
     Task<object?> GetQuickViewDataAsync(int id, CancellationToken ct = default);
     Task<List<Interview>> GetCandidateInterviewsAsync(int candidateId, CancellationToken ct = default);
     ParsedResumeResult? ParseResume(string? resumePath);
+    QuickImportParsedResult ParseRawResumeText(string rawText);
 }

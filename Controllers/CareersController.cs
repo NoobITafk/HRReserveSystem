@@ -8,7 +8,8 @@ namespace HRReserveSystem.Controllers;
 [AllowAnonymous]
 public class CareersController(
     ICareersService careersService,
-    ICandidateApplicationService applicationService) : Controller
+    ICandidateApplicationService applicationService,
+    IObjectStorageService objectStorage) : Controller
 {
     [HttpGet]
     public async Task<IActionResult> Index(string? search)
@@ -74,12 +75,24 @@ public class CareersController(
             return View("Details", vacancy);
         }
 
-        return RedirectToAction(nameof(Success), new { id = application.Id });
+        var token = objectStorage.GeneratePresignedToken($"app_{application.Id}", TimeSpan.FromHours(2));
+        TempData["AppliedApplicationId"] = application.Id;
+
+        return RedirectToAction(nameof(Success), new { id = application.Id, token });
     }
 
     [HttpGet]
-    public async Task<IActionResult> Success(int id)
+    public async Task<IActionResult> Success(int id, string? token = null)
     {
+        var hasTempAccess = TempData["AppliedApplicationId"] is int allowedId && allowedId == id;
+        var hasTokenAccess = !string.IsNullOrWhiteSpace(token) && objectStorage.ValidatePresignedToken($"app_{id}", token);
+        var isAuthorizedStaff = User.IsInRole("Admin") || User.IsInRole("Recruiter");
+
+        if (!hasTempAccess && !hasTokenAccess && !isAuthorizedStaff)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
         var application = await careersService.GetApplicationSuccessDetailsAsync(id);
         if (application is null)
         {

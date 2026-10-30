@@ -310,4 +310,70 @@ public class ResumeIntelligenceService
 
         return sb.ToString().Trim();
     }
+
+    public QuickImportParsedResult ParseRawResumeText(string rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText))
+        {
+            return new QuickImportParsedResult(false, "", "", "", 0, "", "", "Вставте текст резюме або профілю.");
+        }
+
+        var text = rawText;
+        var emailMatch = Regex.Match(text, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
+        var email = emailMatch.Success ? emailMatch.Value : "";
+
+        var phoneMatch = Regex.Match(text, @"(?:\+?380|0)\d{9}|(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}");
+        var phone = phoneMatch.Success ? phoneMatch.Value.Trim() : "";
+
+        var expMatch = Regex.Match(text, @"(\d+)\s*(?:роки|років|року|years|year|р\.)", RegexOptions.IgnoreCase);
+        var experienceYears = expMatch.Success && int.TryParse(expMatch.Groups[1].Value, out var exp) ? exp : 0;
+
+        var knownSkills = new[]
+        {
+            "C#", ".NET", "ASP.NET", "Entity Framework", "SQL", "PostgreSQL", "MSSQL", "MySQL",
+            "JavaScript", "TypeScript", "React", "Angular", "Vue", "Node.js", "Docker",
+            "Kubernetes", "AWS", "Azure", "Git", "REST API", "Microservices", "CI/CD",
+            "Redis", "HTML", "CSS", "Python", "Java", "Go", "Figma", "Jira", "Linux"
+        };
+
+        var matchedSkills = new List<string>();
+        foreach (var skill in knownSkills)
+        {
+            var pattern = $@"(?<!\w){Regex.Escape(skill)}(?!\w)";
+            if (Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase))
+            {
+                matchedSkills.Add(skill);
+            }
+        }
+
+        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var fullName = "";
+        foreach (var line in lines.Take(5))
+        {
+            if (!line.Contains('@') && !line.Contains("http") && !line.Contains("+") && line.Length >= 4 && line.Length <= 60 && line.Split(' ').Length >= 2)
+            {
+                fullName = line;
+                break;
+            }
+        }
+
+        return new QuickImportParsedResult(
+            true,
+            fullName,
+            email,
+            phone,
+            experienceYears,
+            string.Join(", ", matchedSkills),
+            text.Length > 500 ? text[..500] + "..." : text);
+    }
 }
+
+public record QuickImportParsedResult(
+    bool Success,
+    string FullName,
+    string Email,
+    string Phone,
+    int ExperienceYears,
+    string Skills,
+    string Summary,
+    string? Message = null);

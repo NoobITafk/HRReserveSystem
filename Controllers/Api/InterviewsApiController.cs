@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using HRReserveSystem.Models;
 using HRReserveSystem.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -16,6 +17,14 @@ public class InterviewsApiController(
     public async Task<ActionResult<IEnumerable<InterviewDto>>> GetAll()
     {
         var (items, _, _) = await interviewService.GetInterviewsAsync(null, null, 1, 1000);
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        if (isInterviewer)
+        {
+            var currentRecruiterId = await interviewService.GetRecruiterIdForUserAsync(
+                User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim),
+                User.FindFirstValue(ClaimTypes.NameIdentifier));
+            items = items.Where(i => i.RecruiterId == currentRecruiterId).ToList();
+        }
         return Ok(items.Select(ToDto));
     }
 
@@ -23,7 +32,21 @@ public class InterviewsApiController(
     public async Task<ActionResult<InterviewDto>> GetById(int id)
     {
         var interview = await interviewService.GetInterviewDetailsAsync(id);
-        return interview is null ? NotFound() : Ok(ToDto(interview));
+        if (interview is null) return NotFound();
+
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        if (isInterviewer)
+        {
+            var currentRecruiterId = await interviewService.GetRecruiterIdForUserAsync(
+                User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim),
+                User.FindFirstValue(ClaimTypes.NameIdentifier));
+            if (interview.RecruiterId != currentRecruiterId)
+            {
+                return Forbid();
+            }
+        }
+
+        return Ok(ToDto(interview));
     }
 
     [HttpPost]

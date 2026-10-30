@@ -17,6 +17,14 @@ public class SoftSkillsApiController(
     public async Task<ActionResult<IEnumerable<SoftSkillDto>>> GetAll()
     {
         var assessments = await assessmentService.GetAssessmentsAsync();
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        if (isInterviewer)
+        {
+            var currentRecruiterId = await assessmentService.GetRecruiterIdForUserAsync(
+                User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim),
+                User.FindFirstValue(ClaimTypes.NameIdentifier));
+            assessments = assessments.Where(a => a.RecruiterId == currentRecruiterId).ToList();
+        }
         return Ok(assessments.Select(ToDto));
     }
 
@@ -24,7 +32,21 @@ public class SoftSkillsApiController(
     public async Task<ActionResult<SoftSkillDto>> GetById(int id)
     {
         var assessment = await assessmentService.GetAssessmentDetailsAsync(id);
-        return assessment is null ? NotFound() : Ok(ToDto(assessment));
+        if (assessment is null) return NotFound();
+
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        if (isInterviewer)
+        {
+            var currentRecruiterId = await assessmentService.GetRecruiterIdForUserAsync(
+                User.FindFirstValue(IdentityRecruiterSyncService.RecruiterIdClaim),
+                User.FindFirstValue(ClaimTypes.NameIdentifier));
+            if (assessment.RecruiterId != currentRecruiterId)
+            {
+                return Forbid();
+            }
+        }
+
+        return Ok(ToDto(assessment));
     }
 
     [HttpPost]

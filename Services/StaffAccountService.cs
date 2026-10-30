@@ -4,13 +4,19 @@ using HRReserveSystem.Models;
 using HRReserveSystem.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace HRReserveSystem.Services;
 
 public class StaffAccountService(
     ApplicationDbContext context,
-    IPasswordHasher<Recruiter> passwordHasher) : IStaffAccountService
+    IPasswordHasher<Recruiter> passwordHasher,
+    IObjectStorageService objectStorage) : IStaffAccountService
 {
+    public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct = default)
+    {
+        return await context.Database.BeginTransactionAsync(ct);
+    }
     public async Task<bool> IsLoginTakenAsync(string login, CancellationToken ct = default)
     {
         var normalizedLogin = login.Trim().ToLower();
@@ -138,5 +144,20 @@ public class StaffAccountService(
 
         context.Recruiters.Update(recruiter);
         await context.SaveChangesAsync(ct);
+    }
+
+    public async Task<string?> SaveStaffAvatarAsync(IFormFile avatarFile, int recruiterId, CancellationToken ct = default)
+    {
+        if (avatarFile is null || avatarFile.Length == 0) return null;
+
+        var allowedExts = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var ext = Path.GetExtension(avatarFile.FileName).ToLowerInvariant();
+        if (!allowedExts.Contains(ext) || avatarFile.Length > 5 * 1024 * 1024)
+        {
+            return null;
+        }
+
+        await using var stream = avatarFile.OpenReadStream();
+        return await objectStorage.UploadFileAsync(stream, $"avatar_{recruiterId}_{Guid.NewGuid():N}{ext}", avatarFile.ContentType, ct);
     }
 }

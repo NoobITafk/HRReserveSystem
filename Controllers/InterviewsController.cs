@@ -36,16 +36,29 @@ public class InterviewsController(
 
     public async Task<IActionResult> ExportIcs(int? id = null)
     {
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        var currentRecruiterId = isInterviewer ? await GetCurrentRecruiterId() : null;
+
         if (id.HasValue)
         {
             var interview = await interviewService.GetInterviewDetailsAsync(id.Value);
             if (interview is null) return NotFound();
+
+            if (isInterviewer && interview.RecruiterId != currentRecruiterId)
+            {
+                return Forbid();
+            }
 
             var content = interviewService.GenerateIcsContent(interview);
             return File(Encoding.UTF8.GetBytes(content), "text/calendar; charset=utf-8", $"interview-{id.Value}.ics");
         }
 
         var allInterviews = await interviewService.GetCalendarInterviewsAsync();
+        if (isInterviewer)
+        {
+            allInterviews = allInterviews.Where(i => i.RecruiterId == currentRecruiterId).ToList();
+        }
+
         var sb = new StringBuilder();
         foreach (var interview in allInterviews)
         {
@@ -61,6 +74,16 @@ public class InterviewsController(
         if (interview is null)
         {
             return NotFound();
+        }
+
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        if (isInterviewer)
+        {
+            var currentRecruiterId = await GetCurrentRecruiterId();
+            if (interview.RecruiterId != currentRecruiterId)
+            {
+                return Forbid();
+            }
         }
 
         return Redirect(interviewService.GetGoogleCalendarUrl(interview));
@@ -95,7 +118,22 @@ public class InterviewsController(
         }
 
         var interview = await interviewService.GetInterviewDetailsAsync(id.Value);
-        return interview is null ? NotFound() : View(interview);
+        if (interview is null)
+        {
+            return NotFound();
+        }
+
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        if (isInterviewer)
+        {
+            var currentRecruiterId = await GetCurrentRecruiterId();
+            if (interview.RecruiterId != currentRecruiterId)
+            {
+                return Forbid();
+            }
+        }
+
+        return View(interview);
     }
 
     [Authorize(Roles = "Admin,Recruiter")]

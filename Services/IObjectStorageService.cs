@@ -18,4 +18,6 @@ public interface IObjectStorageService
     string GetContentType(string fileName);
     Task<string?> GeneratePresignedDownloadUrlAsync(string storagePath, TimeSpan expiry, CancellationToken ct = default);
     Task<(string UploadUrl, string FinalStoragePath)> GeneratePresignedUploadUrlAsync(string fileName, string contentType, TimeSpan expiry, CancellationToken ct = default);
+    string GeneratePresignedToken(string payload, TimeSpan expiry);
+    bool ValidatePresignedToken(string payload, string tokenBase64);
 }

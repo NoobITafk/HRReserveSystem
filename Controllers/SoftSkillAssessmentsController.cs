@@ -24,7 +24,22 @@ public class SoftSkillAssessmentsController(ISoftSkillAssessmentService assessme
         }
 
         var assessment = await assessmentService.GetAssessmentDetailsAsync(id.Value);
-        return assessment is null ? NotFound() : View(assessment);
+        if (assessment is null)
+        {
+            return NotFound();
+        }
+
+        var isInterviewer = User.IsInRole("Interviewer") && !User.IsInRole("Admin") && !User.IsInRole("Recruiter");
+        if (isInterviewer)
+        {
+            var currentRecruiterId = await GetCurrentRecruiterId();
+            if (assessment.RecruiterId != currentRecruiterId)
+            {
+                return Forbid();
+            }
+        }
+
+        return View(assessment);
     }
 
     public async Task<IActionResult> Create()

@@ -88,7 +88,7 @@ public class CandidatesController(
             return BadRequest();
         }
 
-        if (objectStorage is LocalObjectStorageService localService && !localService.ValidatePresignedToken(file, token))
+        if (!objectStorage.ValidatePresignedToken(file, token))
         {
             return Forbid();
         }
@@ -314,55 +314,8 @@ public class CandidatesController(
             return BadRequest(new { success = false, message = "Вставте текст резюме або профілю." });
         }
 
-        var text = request.RawText;
-        var emailMatch = System.Text.RegularExpressions.Regex.Match(text, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
-        var email = emailMatch.Success ? emailMatch.Value : "";
-
-        var phoneMatch = System.Text.RegularExpressions.Regex.Match(text, @"(?:\+?380|0)\d{9}|(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}");
-        var phone = phoneMatch.Success ? phoneMatch.Value.Trim() : "";
-
-        var expMatch = System.Text.RegularExpressions.Regex.Match(text, @"(\d+)\s*(?:роки|років|року|years|year|р\.)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        var experienceYears = expMatch.Success && int.TryParse(expMatch.Groups[1].Value, out var exp) ? exp : 0;
-
-        var knownSkills = new[]
-        {
-            "C#", ".NET", "ASP.NET", "Entity Framework", "SQL", "PostgreSQL", "MSSQL", "MySQL",
-            "JavaScript", "TypeScript", "React", "Angular", "Vue", "Node.js", "Docker",
-            "Kubernetes", "AWS", "Azure", "Git", "REST API", "Microservices", "CI/CD",
-            "Redis", "HTML", "CSS", "Python", "Java", "Go", "Figma", "Jira", "Linux"
-        };
-
-        var matchedSkills = new List<string>();
-        foreach (var skill in knownSkills)
-        {
-            var pattern = $@"(?<!\w){System.Text.RegularExpressions.Regex.Escape(skill)}(?!\w)";
-            if (System.Text.RegularExpressions.Regex.IsMatch(text, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-            {
-                matchedSkills.Add(skill);
-            }
-        }
-
-        var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var fullName = "";
-        foreach (var line in lines.Take(5))
-        {
-            if (!line.Contains('@') && !line.Contains("http") && !line.Contains("+") && line.Length >= 4 && line.Length <= 60 && line.Split(' ').Length >= 2)
-            {
-                fullName = line;
-                break;
-            }
-        }
-
-        return Json(new
-        {
-            success = true,
-            fullName = fullName,
-            email = email,
-            phone = phone,
-            experienceYears = experienceYears,
-            skills = string.Join(", ", matchedSkills),
-            summary = text.Length > 500 ? text.Substring(0, 500) + "..." : text
-        });
+        var result = candidateService.ParseRawResumeText(request.RawText);
+        return Json(result);
     }
 
     private void ValidateResumeFile(IFormFile? resumeFile, bool requireFile = false)
