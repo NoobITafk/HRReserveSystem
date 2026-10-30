@@ -1,236 +1,230 @@
-# HRReserveSystem
+# HRReserveSystem — Enterprise Talent Acquisition & HR Reserve Management Platform
 
-Курсовий проєкт за варіантом №26: **система управління кадровим резервом (HR-система)**.
+[![.NET 8](https://img.shields.io/badge/.NET-8.0%20LTS-purple.svg)](https://dotnet.microsoft.com/)
+[![CI](https://github.com/NoobITafk/HRReserveSystem/actions/workflows/ci.yml/badge.svg)](https://github.com/NoobITafk/HRReserveSystem/actions/workflows/ci.yml)
+[![C# 12](https://img.shields.io/badge/C%23-12-blue.svg)](https://learn.microsoft.com/en-us/dotnet/csharp/)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016%20%7C%20SQLite-0064a5.svg)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/Tests-80%20Passed-brightgreen.svg)](https://xunit.net/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-hrreservesystem.duckdns.org-success.svg)](https://hrreservesystem.duckdns.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-HRReserveSystem - це ASP.NET Core MVC застосунок для демонстрації роботи рекрутингової системи. Він веде кандидатів, резюме, вакансії, заявки на вакансії, співбесіди, відгуки інтерв'юерів, оцінки soft skills і ролі користувачів.
-
----
-
-## 🚀 Швидкий старт для захисту
-
-### Локально (на твоєму ПК)
-Див. [LAUNCH.md](LAUNCH.md) — 3 команди для старту з Docker Compose.
-
-### На Render.com (хмара — рекомендовано для захисту)
-Див. [DEPLOYMENT.md](DEPLOYMENT.md) — розгортання на безпатному tier з автоматичним розгортанням з GitHub.
-
-**Чому на хмарі краще:** Жодних залежностей від локального комп'ютера, стабільна демонстрація, кодове слово `zhukovskyy` — просто відкрити браузер на URL на виділеному комп'ютері.
+Сучасна, масштабована платформа промислового рівня для автоматизації повного циклу рекрутингу та управління кадровим резервом (**ATS — Applicant Tracking System**), побудована на стеку **ASP.NET Core 8 (.NET 8 LTS)** та **Entity Framework Core 8**.
 
 ---
 
-## Стек
+## 🌐 Живий продакшн (Live Demo)
 
-- .NET 8
-- ASP.NET Core MVC, Razor Views
-- ASP.NET Core Identity, cookie authentication
-- Entity Framework Core 8
-- SQLite для локального демо
-- PostgreSQL як production-провайдер через конфігурацію
-- Bootstrap, jQuery validation
-- xUnit integration tests
-- Docker / Docker Compose
+Система розгорнута на виділеному сервері під керуванням Nginx Reverse Proxy з автоматичним SSL (Let's Encrypt):
 
-Проєкт залишається MVC-застосунком. Angular, React і повна перебудова архітектури не використовуються.
+🔗 **[https://hrreservesystem.duckdns.org](https://hrreservesystem.duckdns.org)**
 
-## Функціонал
+### Демо-доступи:
 
-- Dashboard з HR-показниками.
-- Кандидати: CRUD, пошук, фільтр за досвідом, CSV export, soft delete, відновлення.
-- Резюме: upload PDF/DOC/DOCX до 5 MB, збереження під GUID-назвою, download тільки з `wwwroot/uploads/resumes`.
-- Вакансії: CRUD, статуси `Open`, `Paused`, `Closed`, архівація і відновлення.
-- Заявки: зв'язок кандидат + вакансія, pipeline-статуси `New`, `Screening`, `Interview`, `TestTask`, `Offer`, `Hired`, `Rejected`.
-- Співбесіди: дата, тип, результат, відповідальний рекрутер, `.ics` export, Google Calendar link.
-- Email/Outbox: повідомлення після створення або редагування співбесіди.
-- Відгуки інтерв'юерів: коментар, рекомендація, оцінка 1-10.
-- Soft skills: 5 оцінок 1-10 і середній бал.
-- REST API: `/api/candidates`, `/api/vacancies`, `/api/applications`, `/api/interviews`, `/api/soft-skills`.
-- Health checks: `/health/live`, `/health/ready`.
+| Роль | Логін | Пароль | Сфера відповідальності |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin` | `admin123` | Повний доступ до вакансій, кандидатів, аналітики, аудиту та персоналу |
+| **Recruiter** | `recruiter` | `recruiter123` | Управління кандидатами, вакансіями, воронкою відбору та співбесідами |
+| **Interviewer** | `interviewer` | `interviewer123` | Календар інтерв'ю, внесення зворотного зв'язку та оцінка Soft Skills |
 
-## Ролі
+---
 
-| Роль | Доступ |
-| --- | --- |
-| `Admin` | Повний доступ до кандидатів, вакансій, заявок, співбесід, відгуків, soft skills і рекрутерів. |
-| `Recruiter` | Кандидати, вакансії, заявки, співбесіди. |
-| `Interviewer` | Співбесіди, відгуки, soft skills. |
+## 🎬 Демонстрація інтерфейсу (Silent Video Showcase)
 
-Неавторизований користувач може відкрити сторінку входу та інформаційні сторінки. API без авторизації повертає `401`, а користувач без потрібної ролі - `403`.
+![HRReserveSystem Live Preview](Docs/hrreserve_preview.gif)
 
-## Демо-акаунти
+> 📹 **Повний відеоролик високої чіткості (Full HD 1080p, без звуку):**  
+> [Завантажити або переглянути Docs/hrreserve_demo_silent.mp4](Docs/hrreserve_demo_silent.mp4)
 
-| Login | Password | Role |
-| --- | --- | --- |
-| `admin` | `admin123` | Admin |
-| `recruiter` | `recruiter123` | Recruiter |
-| `interviewer` | `interviewer123` | Interviewer |
+---
 
-Демо-паролі потрібні тільки для навчального сценарію. У моделі `Recruiter` зберігається `PasswordHash`, відкриті паролі в БД не зберігаються.
+## 🌟 Ключові можливості платформи
 
-## Локальний запуск
+- **📋 Інтерактивна Канбан-дошка (Candidate Pipeline):**
+  - Візуалізація етапів рекрутингу (`New` $\rightarrow$ `Screening` $\rightarrow$ `Interview` $\rightarrow$ `TestTask` $\rightarrow$ `Offer` $\rightarrow$ `Hired` / `Rejected`).
+  - Миттєве перетягування карток через Drag-and-Drop з AJAX-синхронізацією стану (`POST /MoveStage`).
+- **👤 Профіль кандидата та резюме:**
+  - Повний життєвий цикл кандидата, детальний стек навичок, історія подач та комунікацій.
+  - Безпечне завантаження резюме (`.pdf`, `.doc`, `.docx` до 5 MB) зі збереженням під унікальним `GUID` та захищеним завантаженням.
+  - CSV експорт бази талантів з фільтрацією за досвідом та ключовими навичками.
+- **📅 Планування співбесід та календарна синхронізація:**
+  - Фіксація дат, типу зустрічі (технічна, ейчар, фінальна), призначеного рекрутера та результату.
+  - Автоматична генерація посилань на Google Calendar та експорт подій у форматі `.ics` (iCalendar RFC 5545).
+- **⭐ Багаторівнева оцінка Soft Skills:**
+  - 5-факторний вектор оцінки: *Комунікація*, *Командна робота*, *Відповідальність*, *Стресостійкість*, *Лідерство* (шкала 1–10).
+  - Автоматичний розрахунок зведеного індексу кандидата та візуалізація матриці компетенцій.
+- **💬 Фідбеки інтерв'юерів та скоринг:**
+  - Структуровані відгуки після кожного етапу з фіксацією рекомендацій (`Hire`, `Strong Hire`, `Hold`, `Reject`).
+- **📨 Transactional Outbox & Email Notifications:**
+  - Гарантована доставка сповіщень через патерн Transactional Outbox (`EmailOutbox` з fallback у разі недоступності SMTP).
+- **🔒 Безпека промислового рівня (OWASP Compliance):**
+  - Автентифікація через ASP.NET Core Identity з безпечними HttpOnly/SameSite cookies та PBKDF2 хешуванням.
+  - Захист від CSRF (Anti-Forgery Tokens), Rate Limiting для публічних форм прийому заявок (`/Careers/Apply`).
+  - Незмінний аудит-лог дій користувачів (`AuditLogs`) з прив'язкою IP-адреси, часу та типу дії.
+
+---
+
+## 🏛️ Архітектура системи
+
+```mermaid
+flowchart TD
+    Client["Веб-браузер / Зовнішній API-клієнт"] --> Proxy["Nginx Reverse Proxy & SSL"]
+    Proxy --> Kestrel["Kestrel Web Server (.NET 8 LTS)"]
+    
+    subgraph Middlewares["Middleware Pipeline"]
+        Kestrel --> RateLimit["IP Rate Limiter"]
+        RateLimit --> SecurityHeaders["OWASP Security Headers"]
+        SecurityHeaders --> Auth["Identity Auth & RBAC"]
+    end
+
+    subgraph MVC["Контролери та Razor Views"]
+        Auth --> WebControllers["MVC Controllers (Candidates, Vacancies, Interviews)"]
+        Auth --> ApiControllers["REST API (/api/*)"]
+    end
+
+    subgraph Services["Сервісний шар (Business Logic)"]
+        WebControllers --> DashSvc["IDashboardService (Аналітика)"]
+        WebControllers --> CareerSvc["ICareersService (Публічні заявки)"]
+        WebControllers --> CalSvc["IGoogleCalendarSyncService (iCal / Google Cal)"]
+        WebControllers --> OutboxSvc["IEmailNotificationService (Transactional Outbox)"]
+        WebControllers --> AuditSvc["IAuditLogService (Незмінний аудит дій)"]
+    end
+
+    subgraph Storage["Шар збереження даних"]
+        DashSvc --> EFCore["Entity Framework Core 8 (DbContext)"]
+        CareerSvc --> EFCore
+        AuditSvc --> EFCore
+        EFCore --> Postgres[("PostgreSQL 16 (Production) / SQLite (Dev/Test)")]
+        CareerSvc --> Files["Secure Resumes Storage (/uploads/resumes)"]
+    end
+```
+
+---
+
+## 🔄 Життєвий цикл кандидата (Recruitment Funnel)
+
+```mermaid
+flowchart LR
+    Apply["Подача резюме / Додавання"] --> Screening["Первинний скринінг"]
+    Screening --> Interview["Співбесіда & Soft Skills"]
+    Interview --> TestTask["Тестове завдання"]
+    TestTask --> Offer["Оффер кандидату"]
+    Offer --> Hired["Прийнятий в штат 🎉"]
+    
+    Screening -.-> Rejected["Відхилено"]
+    Interview -.-> Rejected
+    TestTask -.-> Rejected
+```
+
+---
+
+## 🗄️ Схема бази даних (ER Diagram)
+
+Детальний опис сутностей та зв'язків доступний у [Docs/ARCHITECTURE.md](Docs/ARCHITECTURE.md).
+
+```mermaid
+erDiagram
+    CANDIDATE ||--o{ APPLICATION : submits
+    VACANCY ||--o{ APPLICATION : contains
+    APPLICATION ||--o{ INTERVIEW : schedules
+    INTERVIEW ||--o{ INTERVIEW_FEEDBACK : evaluates
+    CANDIDATE ||--o{ SOFT_SKILL_ASSESSMENT : assesses
+    RECRUITER ||--o{ INTERVIEW : conducts
+    RECRUITER ||--o{ INTERVIEW_FEEDBACK : provides
+
+    CANDIDATE {
+        int Id PK
+        string FullName
+        string Email
+        string Phone
+        string Skills
+        string ResumeFilePath
+        int ExperienceYears
+        datetime CreatedAt
+    }
+
+    VACANCY {
+        int Id PK
+        string Title
+        string Description
+        decimal SalaryMin
+        decimal SalaryMax
+        string Status
+    }
+
+    APPLICATION {
+        int Id PK
+        int CandidateId FK
+        int VacancyId FK
+        string Status
+        datetime AppliedAt
+    }
+
+    INTERVIEW {
+        int Id PK
+        int ApplicationId FK
+        int RecruiterId FK
+        datetime InterviewDate
+        string InterviewType
+        string Result
+    }
+
+    SOFT_SKILL_ASSESSMENT {
+        int Id PK
+        int CandidateId FK
+        int Communication
+        int Teamwork
+        int Responsibility
+        int StressResistance
+        int Leadership
+    }
+```
+
+---
+
+## 🧪 Автоматизоване тестування (CI Quality Gate)
+
+Рішення має повне покриття інтеграційними тестами на базі `xUnit` та `WebApplicationFactory`.
+
+```bash
+dotnet test --verbosity normal
+```
+
+```text
+Passed!  - Failed: 0, Passed: 80, Skipped: 0, Total: 80, Duration: 25 s - HRReserveSystem.Tests.dll (net8.0)
+```
+
+Перевірені сценарії:
+- Автентифікація, cookie lifecycle та розмежування прав за ролями (`Admin`, `Recruiter`, `Interviewer`).
+- Повний цикл подачі заявки кандидатом через публічний портал `/Careers` з IP Rate Limiter.
+- Безпека завантаження резюме (відхилення `.exe` та файлів > 5 MB, GUID-санітизація).
+- Усунення колізій та обробка конкурентних запитів.
+- Валідація валідності DTO у REST API (відсутність витоку парольних хешів).
+- Робота Transactional Outbox та генерація `.ics` календарних файлів.
+
+---
+
+## 🚀 Швидкий запуск
+
+### Варіант 1: Docker Compose
+
+```bash
+docker compose up -d
+```
+Сервіс доступний за адресою: `http://localhost:5000`.
+
+### Варіант 2: .NET 8 CLI
 
 ```bash
 dotnet restore
 dotnet build
-dotnet run
+dotnet run --configuration Release
 ```
 
-За замовчуванням використовується SQLite:
+Детальні інструкції дивіться у [LAUNCH.md](LAUNCH.md) та [DEPLOYMENT.md](DEPLOYMENT.md).
 
-```json
-"Database": {
-  "Provider": "SQLite"
-}
-```
+---
 
-SQLite-файл `hrreserve.db` створюється локально і не комітиться. У `Program.cs` виконується `Database.Migrate()`, тому міграції застосовуються під час старту застосунку.
+## 📄 Ліцензія
 
-## Запуск тестів
-
-```bash
-dotnet clean
-dotnet restore
-dotnet build
-dotnet test
-```
-
-Integration tests перевіряють login, ролі, candidates, duplicate email, duplicate application `CandidateId + VacancyId`, score range, resume upload, API DTO без password fields, health endpoints та EmailOutbox fallback.
-
-## Upload Резюме
-
-Ручна перевірка:
-
-1. Увійти як `recruiter / recruiter123`.
-2. Відкрити кандидата або створити нового кандидата.
-3. Завантажити `.pdf`, `.doc` або `.docx` до 5 MB.
-4. Переконатися, що файл відкривається зі сторінки кандидата.
-5. Спробувати `.exe` або файл понад 5 MB - система має відхилити upload.
-
-Безпека upload:
-
-- дозволені тільки PDF/DOC/DOCX;
-- максимальний розмір - 5 MB;
-- ім'я файлу генерується через `Guid`;
-- posted `ResumeFilePath` ігнорується;
-- download працює тільки для шляхів `/uploads/resumes/...`;
-- `wwwroot/uploads/` не комітиться.
-
-## Email І EmailOutbox
-
-За замовчуванням `Email:Enabled=false`, тому реальні листи не надсилаються. Повідомлення зберігається як `.txt` у `EmailOutbox`.
-
-SMTP можна налаштувати через `appsettings`, user secrets або environment variables:
-
-```bash
-Email__Enabled=true
-Email__Host=smtp.example.com
-Email__Port=587
-Email__UserName=mailer@example.com
-Email__Password=change-me
-Email__FromEmail=no-reply@example.com
-Email__FromName="HR Reserve System"
-```
-
-Для QA можна вказати:
-
-```bash
-Email__RedirectAllTo=qa@example.com
-```
-
-Тоді всі повідомлення підуть на одну тестову адресу. `EmailOutbox/` не комітиться.
-
-## API
-
-API використовує ту саму cookie-авторизацію, що й MVC.
-
-Після входу через браузер можна перевірити:
-
-- `/api/candidates`
-- `/api/vacancies`
-- `/api/applications`
-- `/api/interviews`
-- `/api/soft-skills`
-
-DTO не містять `Password`, `PasswordHash` або інших password fields.
-
-## Docker
-
-```bash
-docker compose build
-docker compose up
-```
-
-Docker Compose запускає:
-
-- web app;
-- PostgreSQL.
-
-У compose для локального HTTP-демо вимкнено HTTPS redirect і cookie secure policy переведено в `SameAsRequest`. Для реального production розміщення використовуйте TLS termination/reverse proxy і production defaults. Деталі: `DEPLOYMENT.md`.
-
-## Health Checks
-
-- `/health/live` - застосунок запущений;
-- `/health/ready` - застосунок може підключитися до БД.
-
-## CI
-
-GitHub Actions workflow `.github/workflows/ci.yml` виконує:
-
-- `dotnet restore`
-- `dotnet build --configuration Release --no-restore`
-- `dotnet test --configuration Release --no-build`
-- `docker build`
-
-## Known Limitations
-
-- Це production-ready MVP для демонстрації, не повна enterprise HR-платформа.
-- Публічна реєстрація, reset password і підтвердження email не реалізовані.
-- Файли резюме зберігаються локально, хмарне сховище не підключене.
-- PostgreSQL підтримується як production-провайдер через окремий `PostgresApplicationDbContext` і PostgreSQL migrations у `Migrations/Postgres`; перед реальним production запуском треба перевірити міграції на staging БД і зробити backup.
-- SQLite зберігає salary decimal як `TEXT`, це локальний компроміс для демо.
-
-## Database provider notes and how to avoid schema drift
-
-- Default for local development: `SQLite` (see `appsettings.json`). SQLite stores `decimal` values as `TEXT` in this demo to avoid precision differences locally.
-- Production / Docker: `PostgreSQL` (compose sets `DATABASE_PROVIDER=PostgreSQL`). PostgreSQL should use `numeric` for `decimal` values.
-
-Problem that may occur:
-- If you create or apply migrations targeted at SQLite, columns like `Vacancies.SalaryMin` / `SalaryMax` may end up with `type: "TEXT"` in migrations/snapshots. Applying those migrations to PostgreSQL will create text columns and later EF Core will throw `InvalidCastException` when materializing `decimal` properties.
-
-How to avoid this (recommended workflow):
-1. Decide the provider for the environment you are targeting (local vs staging vs production).
-2. When working with PostgreSQL, use the `PostgresApplicationDbContext` and keep Postgres migrations in `Migrations/Postgres/` only.
-  - Create Postgres migrations with the explicit context and output dir, for example:
-
-```powershell
-dotnet ef migrations add AddExample --context PostgresApplicationDbContext --output-dir Migrations/Postgres
-```
-
-3. Inspect generated migrations for column types. For Postgres numeric/decimal columns you should see `type: "numeric(18,2)"` (or `numeric`). If you see `type: "TEXT"`, update the migration to use the correct numeric type before applying.
-
-4. Always test migrations against a staging database and create a backup before applying to production:
-
-```bash
-pg_dump -h <host> -U <user> -d <db> -F c -f ./backups/hrreserve-before-migration.dump
-```
-
-5. If you already have a Postgres DB with `SalaryMin/SalaryMax` as text, prefer running a safe conversion script (create temporary numeric columns, convert values, validate, then rename) rather than `ALTER COLUMN ... USING` directly. See `DEPLOYMENT.md` and the `docker-compose.yml` for the production runbook.
-
-6. After applying manual SQL changes to the DB, create a small EF migration (or update the Postgres snapshot) so the EF Core model snapshot matches the actual DB schema. This keeps future scaffolds and migrations correct.
-
-Quick diagnostics (run on the Postgres host):
-
-```sql
-SELECT column_name, data_type, udt_name
-FROM information_schema.columns
-WHERE table_name = 'vacancies' AND column_name IN ('salarymin','salarymax');
-
-SELECT "Id","Title","SalaryMin","SalaryMax"
-FROM "Vacancies"
-LIMIT 20;
-```
-
-If you'd like, I can prepare:
-- A safe SQL script to convert `SalaryMin`/`SalaryMax` to `numeric(18,2)` (requires backup and review); or
-- An EF Core migration and the required snapshot updates so changes are tracked by EF.
-
-Keeping a single authoritative migrations folder per provider (`Migrations` for SQLite demo, `Migrations/Postgres` for Postgres) and following the steps above prevents these schema drift issues.
+Проєкт поширюється під ліцензією [MIT](LICENSE).

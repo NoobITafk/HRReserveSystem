@@ -1,252 +1,115 @@
-# DEPLOYMENT — Інструкції для розгортання
+# HRReserveSystem — Інструкція з розгортання у продакшн (Production Deployment)
 
-## Швидко: Локальний запуск для демонстрації
-
-Див. [LAUNCH.md](LAUNCH.md) — найпростіші 3 кроки.
+Даний документ регламентує процеси розгортання системи **HRReserveSystem** у хмарних середовищах та на виділених Linux/Docker серверах.
 
 ---
 
-## Production: Розгортання на Render.com
+## 🌐 1. Архітектура продакшен-середовища
 
-### Чому Render?
-- **Безпатний** tier з PostgreSQL
-- **Автоматичне розгортання** з GitHub
-- **Жодних налаштувань** — просто push код
-- **Stабільна демонстрація** на захисті (інтернет + хмара)
-
-### Крок за кроком
-
-1. **GitHub:** Переконатись, що весь код закомітлено
-   ```bash
-   git add .
-   git commit -m "Ready for deployment"
-   git push origin main
-   ```
-
-2. **Render:** Перейти на https://render.com, реєстрація через GitHub
-
-3. **Розгортання:** 
-   - Натиснути "New Web Service"
-   - Вибрати GitHub репозиторій
-   - Render прочитає `render.yaml` і розгорне все автоматично
-
-4. **Чекати:** Після успіху отримаєш URL: `https://hrreservesystem.onrender.com`
-
-5. **Демонстрація:** На виділеному комп'ютері просто відкрити браузер на цю URL
+- **Operating System:** Linux (Ubuntu 22.04 LTS / Alpine Linux).
+- **Runtime:** .NET 8 LTS (ASP.NET Core Kestrel).
+- **Database:** PostgreSQL 16 LTS (підключення через Connection String з підтримкою connection pooling).
+- **Reverse Proxy & SSL:** Nginx з автоматичним оновленням сертифікатів Let's Encrypt / Certbot.
+- **Dynamic DNS:** DuckDNS (`https://hrreservesystem.duckdns.org`).
 
 ---
 
-## Локальний запуск (без Docker)
+## 🐳 2. Розгортання через Docker & Docker Compose
 
-Для development:
+Конфігурація `docker-compose.yml` містить сервіси веб-додатку та PostgreSQL 16 з ізольованою віртуальною мережею:
+
+```yaml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    restart: always
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Database__Provider=PostgreSQL
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=hrreserve;Username=hrreserve;Password=${DB_PASSWORD}
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: hrreserve
+      POSTGRES_USER: hrreserve
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+
+### Команди запуску на сервері:
 
 ```bash
-# Встановити .NET 8 SDK (https://dotnet.microsoft.com/download)
+# 1. Створення файлу оточення з надійними секретами
+cp .env.example .env
 
-# Встановити Postgres локально або розпочати контейнер:
-docker run -d \
-  --name postgres-dev \
-  -e POSTGRES_DB=hrreserve \
-  -e POSTGRES_USER=hrreserve \
-  -e POSTGRES_PASSWORD=change-me \
-  -p 5432:5432 \
-  postgres:16-alpine
+# 2. Підняття контейнерів у фоні
+docker compose up -d --build
 
-# Запустити додаток:
-dotnet run
+# 3. Перевірка логів запуску та міграцій
+docker compose logs -f web
 ```
+
+Під час першого старту контейнера автоматично спрацьовує `Database.Migrate()`, створюючи всі необхідні схеми та індекси, а також ініціалізується початковий пул демо-даних.
 
 ---
 
-## Docker Compose (локально + Postgres у Docker)
+## 🔒 3. Налаштування Nginx Reverse Proxy та SSL
 
-```bash
-docker compose up -d
-dotnet run --configuration Release
-```
+Приклад конфігурації Nginx для домену з HTTPS:
 
-Див. [LAUNCH.md](LAUNCH.md) для деталей.
+```nginx
+server {
+    listen 80;
+    server_name hrreservesystem.duckdns.org;
+    return 301 https://$host$request_uri;
+}
 
----
+server {
+    listen 443 ssl http2;
+    server_name hrreservesystem.duckdns.org;
 
-## Environment Variables
+    ssl_certificate /etc/letsencrypt/live/hrreservesystem.duckdns.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/hrreservesystem.duckdns.org/privkey.pem;
 
-**Development (локально):**
-```bash
-DATABASE_PROVIDER=SQLite
-```
+    # OWASP Security Headers
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Strict-Transport-Security "max-age=2592000; includeSubDomains" always;
 
-**Production (Render/Docker):**
-```bash
-ASPNETCORE_ENVIRONMENT=Production
-DATABASE_PROVIDER=PostgreSQL
-DATABASE_URL=postgres://user:password@host:5432/dbname
-# Або:
-ConnectionStrings__DefaultConnection=Host=...;Database=...;Username=...;Password=...
-```
+    client_max_body_size 10M;
 
-Інші необов'язкові:
-```bash
-Email__Enabled=false
-Email__Host=smtp.example.com
-Email__Port=587
-Email__UserName=your-email@example.com
-Email__Password=your-password
-Email__FromEmail=no-reply@example.com
-Email__FromName=HR Reserve System
-```
-
----
-
-## Міграції БД
-
-### Автоматичні (при старті):
-```csharp
-// У Program.cs:
-dbContext.Database.Migrate();
-```
-
-Це запускається автоматично при старті додатка.
-
-### Вручну (якщо потрібно):
-```bash
-dotnet ef database update --context PostgresApplicationDbContext
-```
-
-### Генерувати нову міграцію:
-```bash
-dotnet ef migrations add MigrationName --context PostgresApplicationDbContext --output-dir Migrations/Postgres
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection keep-alive;
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 ---
 
-## Здоровлення (Health Checks)
+## ☁️ 4. Розгортання у PaaS (Render / Railway / Azure)
 
-Додаток має health check endpoints:
-- `GET /health/live` — чи живий додаток
-- `GET /health/ready` — чи готовий (БД підключена, міграції застосовані)
-
-Render використовує `/health/ready` для перевірки, чи розгортання успішне.
-
----
-
-## Логування
-
-Логи пишуться в консоль. На Render можна переглядати в Dashboard → Logs.
-
----
-
-## Проблеми?
-
-| Проблема | Рішення |
-|----------|---------|
-| `Build failed` | Запустити локально `dotnet build` та перевірити помилки |
-| `Database error` | Переконатись, що PostgreSQL запущена і доступна |
-| `Migrations failed` | Перевірити, чи міграції застосовуються без помилок локально |
-| Старих даних на Render | Render має свою БД; локальні дані на твоєму комп'ютері не синхронізуються |
-
----
-
-## Деталі конфігурації
-
-- **Файли конфігурації:** `appsettings.json`, `appsettings.Production.json`
-- **Docker:** `Dockerfile`, `docker-compose.yml`
-- **Render:** `render.yaml`
-- **Старт:** `Program.cs` (конфігурація всього у `Startup`)
-
-Див. детально код у `Services/DatabaseConfiguration.cs`.
-3. Запустити:
-
-```bash
-docker compose build
-docker compose up
-```
-
-Compose запускає web app і PostgreSQL. Застосунок сам виконує `Database.Migrate()` під час старту. Для реального production перед оновленням версії зробіть backup БД.
-
-## База Даних
-
-SQLite:
-
-- використовується для локального демо;
-- файл `hrreserve.db` не комітиться;
-- міграції лежать у `Migrations`.
-
-PostgreSQL:
-
-- вмикається через `DATABASE_PROVIDER=PostgreSQL`;
-- connection string передається через `ConnectionStrings__DefaultConnection` або `DATABASE_URL`;
-- PostgreSQL migrations знаходяться у `Migrations/Postgres`;
-- перед production запуском перевірте міграції на staging БД.
-
-## Email
-
-Fallback режим:
-
-```bash
-Email__Enabled=false
-```
-
-У цьому режимі повідомлення створюються в `EmailOutbox`.
-
-SMTP режим:
-
-```bash
-Email__Enabled=true
-Email__Host=smtp.example.com
-Email__Port=587
-Email__UserName=mailer@example.com
-Email__Password=change-me
-Email__FromEmail=no-reply@example.com
-Email__FromName="HR Reserve System"
-```
-
-Для тестування:
-
-```bash
-Email__RedirectAllTo=qa@example.com
-```
-
-## Backup
-
-SQLite:
-
-```bash
-copy hrreserve.db backups\hrreserve-YYYYMMDD.db
-```
-
-PostgreSQL:
-
-```bash
-pg_dump -h localhost -U hrreserve -d hrreserve -F c -f backups/hrreserve-YYYYMMDD.dump
-```
-
-Docker Compose PostgreSQL:
-
-```bash
-docker compose exec postgres pg_dump -U hrreserve -d hrreserve -F c -f /tmp/hrreserve.dump
-docker compose cp postgres:/tmp/hrreserve.dump ./backups/hrreserve-YYYYMMDD.dump
-```
-
-## Health Checks
-
-```bash
-curl http://localhost:8080/health/live
-curl http://localhost:8080/health/ready
-```
-
-- `/health/live` перевіряє, що процес застосунку живий.
-- `/health/ready` перевіряє доступність налаштованої БД.
-
-## Секрети
-
-Не комітьте:
-
-- `.env`;
-- SMTP passwords;
-- Gmail app passwords;
-- токени;
-- приватні ключі;
-- реальні резюме;
-- `EmailOutbox`;
-- `DataProtectionKeys`.
+Проєкт містить маніфест `render.yaml` та оптимізований `Dockerfile`, що дозволяє розгортати сервіс у хмарних платформах одним кліком:
+- База даних: Managed PostgreSQL.
+- Веб-сервіс: Web Service на базі Dockerfile.
+- Health Check URL: `/health/ready` (перевіряє статус БД та доступність сервісів).

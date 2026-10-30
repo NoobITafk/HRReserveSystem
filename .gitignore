@@ -23,3 +23,6 @@ appsettings.*.local.json
 deploy.tar.gz
 .agents/
 App_Data/
+/portfolio-video/
+/hrreserve_portfolio_fresh.mp4
+/hrreserve_demo_silent.mp4
