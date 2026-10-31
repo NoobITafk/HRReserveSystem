@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /Account/
+Disallow: /api/
+
+Sitemap: https://hrreservesystem.duckdns.org/sitemap.xml
